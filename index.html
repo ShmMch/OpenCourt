@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#050606">
+<meta name="robots" content="noindex">
+<title>Headz — הצטרפו למשחק</title>
+<style>
+  :root {
+    --bg: #050606;
+    --card: #111414;
+    --line: #23292a;
+    --text: #f2f4f4;
+    --muted: #9aa3a4;
+    --accent: #c6ff3d;
+    --accent-text: #050606;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Rubik", "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 16px 40px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 900; font-size: 26px; letter-spacing: 3px;
+    color: var(--text); text-decoration: none; direction: ltr;
+  }
+  .logo .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); }
+  main {
+    width: 100%; max-width: 420px; margin-top: 48px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+    padding: 32px 24px; text-align: center;
+  }
+  h1 { font-size: 26px; margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 16px; }
+  .open {
+    display: block; width: 100%; padding: 16px; border-radius: 14px;
+    background: var(--accent); color: var(--accent-text);
+    font-size: 18px; font-weight: 700; text-decoration: none;
+  }
+  .open:active { transform: scale(.98); }
+  .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; min-height: 1em; }
+  .stores-title { margin: 32px 0 12px; color: var(--muted); font-size: 15px; }
+  .stores { display: flex; gap: 10px; }
+  .store {
+    flex: 1; padding: 12px 8px; border-radius: 12px;
+    border: 1px solid var(--line); color: var(--text); text-decoration: none;
+    font-size: 13px; line-height: 1.4;
+  }
+  .store b { display: block; font-size: 16px; }
+  .store.mine { border-color: var(--accent); }
+  .about { margin-top: 28px; display: inline-block; color: var(--muted); text-decoration: none; font-size: 14px; }
+  .error { color: #ff8a80; }
+</style>
+</head>
+<body>
+  <a class="logo" href="https://headzapp.com/"><span class="dot"></span>HEADZ</a>
+
+  <main>
+    <h1>מזמינים אתכם למשחק</h1>
+    <p class="sub">פרטי המשחק המלאים מחכים באפליקציה</p>
+
+    <a id="openBtn" class="open" href="#">פתיחה באפליקציה</a>
+    <p id="hint" class="hint"></p>
+
+    <p class="stores-title">אין לכם עדיין את Headz? מורידים חינם:</p>
+    <div class="stores">
+      <a id="ios" class="store" href="https://apps.apple.com/us/app/headz/id1528857225">הורדה ב־<b>App Store</b></a>
+      <a id="android" class="store" href="https://play.google.com/store/apps/details?id=com.headzapp.app">הורדה ב־<b>Google Play</b></a>
+    </div>
+
+    <a class="about" href="https://headzapp.com/">מה זה Headz? ←</a>
+  </main>
+
+<script>
+  const PLAY = "https://play.google.com/store/apps/details?id=com.headzapp.app";
+  const PACKAGE = "com.headzapp.app";
+
+  // Game ID comes from ?id=..., or from a hash/path like #/game/ID
+  function getGameId() {
+    const p = new URLSearchParams(location.search).get("id");
+    if (p) return p.trim();
+    const m = (location.hash + location.pathname).match(/game\/([A-Za-z0-9_-]+)/);
+    return m ? m[1] : "";
+  }
+
+  const id = getGameId();
+  const btn = document.getElementById("openBtn");
+  const hint = document.getElementById("hint");
+  const ua = navigator.userAgent;
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (!id || !/^[A-Za-z0-9_-]+$/.test(id)) {
+    btn.style.display = "none";
+    hint.className = "hint error";
+    hint.textContent = "לא נמצא מזהה משחק בקישור.";
+  } else {
+    const gameUrl = "https://headzapp.com/game/" + id;
+    if (isAndroid) {
+      // Opens the app directly; if it isn't installed, falls back to Google Play
+      btn.href = "intent://headzapp.com/game/" + id +
+        "#Intent;scheme=https;package=" + PACKAGE +
+        ";S.browser_fallback_url=" + encodeURIComponent(PLAY) + ";end";
+      document.getElementById("android").classList.add("mine");
+    } else {
+      // On iOS, a tap on this link opens the app via universal link when it's installed
+      btn.href = gameUrl;
+      if (isIOS) document.getElementById("ios").classList.add("mine");
+    }
+    hint.textContent = "האפליקציה לא נפתחה? הורידו אותה ונסו שוב.";
+  }
+</script>
+</body>
+</html>
