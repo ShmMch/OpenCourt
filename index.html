@@ -114,11 +114,19 @@ a{color:var(--brand)}
 .place.off{background:var(--bg);border:3px dashed var(--pink-line);filter:grayscale(1);color:var(--muted)}
 .place.off h3,.place.off .price,.place.off p,.place.off strong{color:var(--muted)}
 .place.off .maplink{display:none}
-.on-badge{align-self:flex-start;background:var(--brand);color:var(--on-brand);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700}
-.off-badge{align-self:flex-start;background:var(--ink-soft);color:var(--on-brand);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700}
+.on-badge,.off-badge{display:block;align-self:stretch;margin:-26px -28px 6px;padding:9px 16px;text-align:center;font-size:15px;font-weight:800;color:var(--on-brand);background:var(--brand)}
+.off-badge{background:var(--muted);margin:-26px -28px 6px}
+.place.off .off-badge{color:var(--on-brand)}
 .notice{background:var(--pink-soft);border:3px solid var(--pink-line);border-radius:24px;padding:26px 28px;display:flex;flex-direction:column;gap:10px}
 .notice-title{font-size:19px;color:var(--brand)}
 .notice p{color:var(--ink);margin:0}
+.g-mylist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.g-mylist li{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--tint);border-radius:14px;padding:8px 8px 8px 14px}
+.g-who{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;min-width:0;font-variant-numeric:tabular-nums;padding-inline-start:4px}
+.g-who b{color:var(--ink)}
+.g-who small{color:var(--brand);font-weight:700}
+.g-cancel{flex-shrink:0;font:inherit;font-size:15px;font-weight:700;color:var(--brand);background:var(--bg);border:2px solid var(--pink-line);border-radius:999px;padding:8px 16px;min-height:44px;cursor:pointer}
+.g-cancel:hover{border-color:var(--brand)}
 .dlg{border:0;border-radius:26px;padding:0;width:min(92vw,480px);max-height:92vh;overflow:auto;background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(42,26,42,.35);font-family:var(--font)}
 .dlg::backdrop{background:rgba(42,26,42,.55)}
 .dlg-form{display:flex;flex-direction:column;gap:14px;padding:26px 24px;border-top:8px solid var(--brand)}
@@ -173,7 +181,7 @@ a{color:var(--brand)}
 .who{font-size:clamp(20px,2vw,24px);font-weight:700;color:var(--ink)}
 .linkish{align-self:flex-start;background:none;border:0;padding:6px 0;font:inherit;font-weight:700;color:var(--brand);text-decoration:underline;cursor:pointer;min-height:44px;text-align:right}
 .places{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
-.place{border-radius:24px;padding:26px 28px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.place{border-radius:24px;overflow:hidden;padding:26px 28px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .place.p{background:var(--pink-soft)} .place.o{background:var(--orange-soft)}
 .place .ico{width:48px;height:48px;border-radius:14px;background:var(--bg);color:var(--brand);display:flex;align-items:center;justify-content:center}
 .place h3{font-size:24px;font-weight:800}
@@ -208,7 +216,6 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
 /* blog */
 .posts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
 .post-card{border:3px solid var(--pink-line);border-radius:24px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
-.post-card.featured{border-color:var(--brand)}
 .post-band{height:130px;display:flex;align-items:center;justify-content:center}
 .post-band.p{background:var(--pink-soft)} .post-band.o{background:var(--orange-soft)}
 .post-body{padding:20px 24px 24px;display:flex;flex-direction:column;gap:10px;flex-grow:1}
@@ -273,6 +280,8 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
 .city .pin{width:72px;height:72px;border-radius:22px;background:var(--bg);color:var(--brand);display:flex;align-items:center;justify-content:center}
 .city h2{font-size:clamp(26px,3vw,34px);font-weight:900;color:var(--brand)}
 .city p{color:var(--ink-soft);margin-top:8px}
+.btn.soon{cursor:default;opacity:.7;border-style:dashed}
+.btn.soon:hover{transform:none}
 .city .ask{font-weight:700;color:var(--ink);margin-top:10px}
 
 /* article extras */
@@ -382,7 +391,7 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
 
       <ol class="steps">
         <li><b>מצטרפת לקבוצת העדכונים</b><span>בוואטסאפ, או במרחב שלנו ב־Google Chat.</span></li>
-        <li><b>מקבלת עדכון</b><span>בכל פעם שנקבע משחק, נשלחת הודעה עם קישור לרישום מהיר.</span></li>
+        <li><b>מקבלת עדכון</b><span>בכל פעם שנקבע משחק, נשלחת הודעה בקבוצה עם קישור להרשמה כאן באתר.</span></li>
         <li><b>נרשמת</b><span>כאן באתר, בקטע "המשחק הבא". ההרשמה פתוחה כל השבוע, עד תחילת המשחק. מתאים לך? נרשמת.</span></li>
         <li><b>מגיעה ונהנית</b><span>מהמשחק, מהאנרגיה ומהחברות על המגרש.</span></li>
       </ol>
@@ -470,7 +479,7 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
       <div class="box">
         <h3 class="h3">מי אנחנו?</h3>
         <p style="color:var(--ink-soft)">אנחנו קהילת שחקניות הכדורסל של אלעד! המטרה שלנו היא פשוטה: להיפגש, לשחק, לשמור על כושר ובעיקר ליהנות יחד.</p>
-        <p style="color:var(--ink-soft)">הפעילות שלנו מבוססת על פורמט של <b style="color:var(--ink)">משחקים פתוחים, כושר וכיף</b>, באווירה חברתית, משחררת וללא מאמנת. אצלנו אין שום התחייבות: מתאים לך? את נרשמת ובאה לשחק מתי שנוח לך!</p>
+        <p style="color:var(--ink-soft)">הפעילות שלנו מבוססת על פורמט של משחקים פתוחים, כושר וכיף, באווירה חברתית, משחררת וללא מאמנת. אצלנו אין שום התחייבות: מתאים לך? את נרשמת ובאה לשחק מתי שנוח לך!</p>
       </div>
     </div>
   </section>
@@ -489,7 +498,7 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
       <li><div><h3>פספסת את זמן הביטול?</h3><p>אם נרשמת ואת לא יכולה להגיע, גם אחרי זמן הביטול, כתבי מיד בקבוצת העדכונים, כדי שמישהי אחרת תוכל לתפוס את מקומך.</p></div></li>
       <li><div><h3>תשלום עד תחילת המשחק</h3><p>משחק באולם המתנ"ס עולה 15 ש"ח, לכיסוי שכירות האולם. משלמות עד תחילת המשחק במזומן, בביט או בהעברה בנקאית. במגרש הפתוח אין עלות.</p></div></li>
       <li><div><h3>לבוש ונעלי ספורט</h3><p>יש להגיע עם בגדי ספורט נוחים ובקבוק שתייה. חובה לנעול נעלי ספורט מתאימות לשמירה על הבריאות ומניעת החלקות ופציעות.</p></div></li>
-      <li><div><h3>פרטיות ונוחות</h3><p>אנחנו מקפידות על מרחב נשי, בטוח וצנוע, שבו כל אחת מרגישה בנוח. [להוסיף? אין לצלם במהלך המשחק בלי הסכמת המשתתפות]</p></div></li>
+      <li><div><h3>נגישות למגרשים מחוץ לעיר</h3><p>במשחקים שמתקיימים מחוץ לעיר אפשר להצטרף לרכבים שיוצאים מאלעד. מבקשים מקום ברכב בהרשמה למשחק.</p></div></li>
     </ol>
   </section>
 
@@ -538,9 +547,9 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
     <div>
       <h2>רוצה להביא את האנרגיה לעיר שלך?</h2>
       <p>החזון שלנו הוא לראות קהילות ספורט ומגרשים פתוחים לנשים בכל רחבי הארץ! אם את גרה מחוץ לאלעד ומעוניינת לבדוק אם קיימת קהילה דומה בעיר שלך, או שבוער בך החשק להרים את הכפפה ולהקים קבוצה כזו אצלכן, אנחנו כאן בשבילך. נשתף אותך מכל הלב בניסיון שצברנו ונעזור לך להוציא את היוזמה לפועל!</p>
-      <p class="ask">מעוניינת להקים קהילה כזו בעיר שלך, או לבדוק אם כבר קיימת אחת? השאירי פרטים.</p>
+      <p class="ask">מעוניינת להקים קהילה כזו בעיר שלך, או לבדוק אם כבר קיימת אחת? טופס להשארת פרטים יעלה כאן בקרוב.</p>
     </div>
-    <a class="btn btn-solid" href="#city">להשארת פרטים [קישור לטופס]</a>
+    <span class="btn btn-line soon" aria-disabled="true">טופס להשארת פרטים · בקרוב</span>
   </section>
 </div>
 
@@ -767,7 +776,7 @@ if (h === 'beginners') openPost(0); else show(ids.includes(h) ? h : 'how');
 
 // ===== המשחק הבא + הרשמה, דרך גוגל שיטס =====
 // כאן מדביקים את כתובת ה־Web app מה־Apps Script (מסתיימת ב־/exec):
-const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7IamK6GvFoFXb_Q6wOWmlCNHBZY6t2fSwgQeqwUUdftu6Rg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX64YsEfepNFMj40npoXDw3eodjcLbqacyT3pjpxeOz82m3w/exec';
 
 (function nextGame() {
   const box = document.getElementById('game-box');
@@ -775,33 +784,59 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7
 
   const months = ['בינואר','בפברואר','במרץ','באפריל','במאי','ביוני','ביולי','באוגוסט','בספטמבר','באוקטובר','בנובמבר','בדצמבר'];
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const dayName = w => w.getDay() === 6 ? 'מוצאי שבת' : 'יום ' + days[w.getDay()];
   const pinSvg = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>';
   const clockSvg = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 
-  // ההרשמה של המבקרת הזו נשמרת בדפדפן (משחק, טלפון וקוד ביטול)
-  const LS = 'elad-women-signup', LSP = 'elad-women-phone';
-  const local = {
-    get() { try { return JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { return null; } },
-    set(v) { try { localStorage.setItem(LS, JSON.stringify(v)); } catch (e) {} },
-    clear() { try { localStorage.removeItem(LS); } catch (e) {} },
-    phone() { try { return localStorage.getItem(LSP) || ''; } catch (e) { return ''; } },
-    setPhone(p) { try { localStorage.setItem(LSP, p); } catch (e) {} }
+  // ההרשמות שבוצעו מהדפדפן הזה (אפשר כמה בנות): משחק, שם, טלפון וקוד ביטול לכל אחת
+  const LSL = 'elad-women-signups';
+  const store = {
+    load() {
+      try {
+        let a = JSON.parse(localStorage.getItem(LSL) || 'null');
+        if (!Array.isArray(a)) {
+          a = [];
+          const old = JSON.parse(localStorage.getItem('elad-women-signup') || 'null'); // גרסה קודמת: הרשמה אחת
+          if (old && old.token) a.push({ key: old.key, token: old.token, name: '', phone: old.phone || '', mine: old.mine || null });
+          localStorage.removeItem('elad-women-signup');
+        }
+        return a.filter(x => x && x.token);
+      } catch (e) { return []; }
+    },
+    save(a) { try { localStorage.setItem(LSL, JSON.stringify(a)); } catch (e) {} }
   };
+  let mineList = store.load();
+  const fmtPhone = p => String(p || '').replace(/^(\d{3})(\d{7})$/, '$1-$2');
 
-  let st = null, busy = false, msg = '', loading = false;
+  let st = null, busy = false, msg = '', loading = false, lastErr = '';
+
+  async function getStatus(token) {
+    const r = await fetch(API_URL + '?action=status' + (token ? '&token=' + encodeURIComponent(token) : ''));
+    const text = await r.text();
+    try { return JSON.parse(text); } catch (x) { throw new Error('התשובה מהסקריפט אינה JSON (HTTP ' + r.status + '): ' + text.slice(0, 120)); }
+  }
 
   async function load() {
     if (loading) return; loading = true;
     try {
-      const saved = local.get();
-      const url = API_URL + '?action=status' + (saved && saved.token ? '&token=' + encodeURIComponent(saved.token) : '');
-      const r = await fetch(url, { cache: 'no-store' });
-      const data = await r.json();
+      const list = mineList.slice();
+      const [data, ...per] = await Promise.all([getStatus(''), ...list.map(x => getStatus(x.token).catch(() => null))]);
+      if (data && !data.ok) lastErr = (data.detail || data.message || 'שגיאה') + ' [' + (data.code || '') + ']';
       if (data && data.ok) {
-        st = data;
-        if (saved && (saved.key !== st.key || st.mine === null)) local.clear(); // משחק ישן, או שההרשמה בוטלה
+        lastErr = ''; st = data;
+        // משאירים רק הרשמות למשחק הנוכחי שעדיין קיימות בגיליון
+        const keep = [];
+        list.forEach((x, i) => {
+          const r = per[i];
+          if (x.key !== st.key) return;                 // משחק ישן
+          if (r && r.ok && r.mine === null) return;     // בוטלה (גם אם המארגנות מחקו את השורה)
+          if (r && r.ok) x.mine = r.mine;
+          keep.push(x);
+        });
+        const added = mineList.filter(x => !list.includes(x)); // הרשמות שנוספו בזמן הטעינה
+        mineList = keep.concat(added); store.save(mineList);
       }
-    } catch (e) { /* בלי רשת: נשאר מה שהוצג */ }
+    } catch (e) { lastErr = 'אין חיבור לסקריפט: ' + (e && e.message ? e.message : e); }
     loading = false; render();
   }
 
@@ -845,6 +880,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7
     const [phoneL, phone] = fld('d-phone', 'מספר טלפון נייד', 'tel', { autocomplete: 'tel', inputMode: 'tel', required: true, placeholder: '050-0000000', dir: 'ltr' });
     const rideL = el('label', 'g-ride'); const ride = el('input'); ride.type = 'checkbox'; ride.id = 'd-ride'; rideL.htmlFor = 'd-ride'; rideL.append(ride, 'אני צריכה מקום ברכב מאלעד');
     const okL = el('label', 'g-ride g-consent'); const ok = el('input'); ok.type = 'checkbox'; ok.id = 'd-consent'; okL.htmlFor = 'd-consent'; okL.append(ok, DECL);
+    const okNote = el('small', 'g-privacy', 'כל נרשמת מאשרת את ההצהרה בעצמה.');
     const hp = el('input'); hp.name = 'website'; hp.tabIndex = -1; hp.autocomplete = 'off'; hp.setAttribute('aria-hidden', 'true');
     hp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0';
     const msg = el('p', 'g-msg'); msg.setAttribute('role', 'alert');
@@ -852,7 +888,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7
     const no = el('button', 'btn btn-line', 'ביטול'); no.type = 'button'; no.addEventListener('click', () => d.close());
     const btns = el('div', 'dlg-btns'); btns.append(go, no);
     const priv = el('small', 'g-privacy', 'השם והמספר נשמרים רק אצל המארגנות, לצורך עדכונים על המשחק.');
-    f.append(h, sub, nameL, phoneL, rideL, okL);
+    f.append(h, sub, nameL, phoneL, rideL, okL, okNote);
     if (withHoneypot) f.append(hp);
     f.append(msg, btns, priv);
     d.append(f); document.body.append(d);
@@ -867,31 +903,41 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7
       try {
         const err = await onSubmit({ name: nm, phone: ph, ride: ride.checked, website: hp.value });
         if (err) msg.textContent = err;
-        else { try { localStorage.setItem('elad-women-name', nm); localStorage.setItem('elad-women-phone', ph); } catch (x) {} d.close(); }
+        else d.close();
       } catch (x) { msg.textContent = 'אין חיבור כרגע. נסי שוב בעוד רגע.'; }
       go.disabled = false; go.textContent = 'אישור והרשמה';
     });
     return {
-      open(line, full) {
-        sub.textContent = line; h.textContent = full ? 'הרשמה לרשימת ההמתנה' : 'הרשמה למשחק';
-        msg.textContent = ''; ok.checked = false;
-        try { if (!name.value) name.value = localStorage.getItem('elad-women-name') || ''; if (!phone.value) phone.value = localStorage.getItem('elad-women-phone') || ''; } catch (x) {}
+      open(line, full, another) {
+        sub.textContent = line; h.textContent = another ? 'הרשמה של בת נוספת' : full ? 'הרשמה לרשימת ההמתנה' : 'הרשמה למשחק';
+        msg.textContent = ''; ok.checked = false; ride.checked = false;
+        if (another) { name.value = ''; phone.value = ''; }
+        else try { if (!name.value) name.value = localStorage.getItem('elad-women-name') || ''; if (!phone.value) phone.value = localStorage.getItem('elad-women-phone') || ''; } catch (x) {}
         if (d.showModal) d.showModal(); else d.setAttribute('open', '');
         (name.value ? (phone.value ? ok : phone) : name).focus();
       }
     };
   }
 
-  const gameLine = w => w ? 'יום ' + days[w.getDay()] + ', ' + w.getDate() + ' ' + months[w.getMonth()] + ' · ' + String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0') + (st && st.place ? ' · ' + st.place : '') : '';
+  const gameLine = w => w ? dayName(w) + ', ' + w.getDate() + ' ' + months[w.getMonth()] + ' · ' + String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0') + (st && st.place ? ' · ' + st.place : '') : '';
   const dlg = makeSignupDialog(async ({ name, phone, ride, website }) => {
     const r = await post({ action: 'signup', name, phone, ride, consent: true, website });
     if (!r.ok) return r.message || 'ההרשמה לא הצליחה.';
-    if (r.token) { local.set({ key: r.key, token: r.token, phone, mine: r.mine }); local.setPhone(phone); st.count = r.count; st.waiting = r.waiting; st.mine = r.mine; }
+    if (r.token) {
+      mineList.push({ key: r.key, token: r.token, name, phone, mine: r.mine }); store.save(mineList);
+      if (mineList.length === 1) { try { localStorage.setItem('elad-women-name', name); localStorage.setItem('elad-women-phone', phone); } catch (x) {} }
+      st.count = r.count; st.waiting = r.waiting;
+    }
     render(); load(); return null;
   }, true);
 
   function render() {
-    if (!st) return;
+    if (!st) {
+      // לא התקבלו פרטים: משאירים את טקסט הגיבוי, ומוסיפים שורה קטנה עם סיבת השגיאה
+      let d = document.getElementById('g-err');
+      if (lastErr) { if (!d) { d = el('small', 'g-privacy'); d.id = 'g-err'; d.style.display = 'block'; d.style.marginTop = '8px'; d.dir = 'auto'; box.append(d); } d.textContent = 'פרטי שגיאה: ' + lastErr; }
+      return;
+    }
     const kept = {}; box.querySelectorAll('input').forEach(i => { kept[i.id] = i.type === 'checkbox' ? i.checked : i.value; });
     const focusId = document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : null;
     box.replaceChildren();
@@ -902,12 +948,11 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7
     const cancelBy = st.cancelBy ? new Date(st.cancelBy).getTime() : 0;
     const started = when && now >= when.getTime();
     const notOpen = when && now < openAt;
-    const saved = local.get();
-    const mine = saved && saved.key === st.key ? (st.mine || saved.mine || null) : null;
+    const mine = mineList.filter(x => x.key === st.key);
 
     const card = el('article', 'game-card');
     const dt = el('div', 'g-date');
-    if (when) dt.append(el('small', null, 'יום ' + days[when.getDay()]), el('b', null, String(when.getDate())), el('span', null, months[when.getMonth()].slice(1)));
+    if (when) dt.append(el('small', null, dayName(when)), el('b', null, String(when.getDate())), el('span', null, months[when.getMonth()].slice(1)));
     else dt.append(el('b', null, '?'), el('span', null, 'בקרוב'));
     const info = el('div', 'g-info');
 
@@ -920,7 +965,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7
     if (when) {
       const t = el('span'); t.innerHTML = clockSvg;
       const hhmm = String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0');
-      t.append('יום ' + days[when.getDay()] + ', ' + when.getDate() + ' ' + months[when.getMonth()] + ' · ' + hhmm);
+      t.append(dayName(when) + ', ' + when.getDate() + ' ' + months[when.getMonth()] + ' · ' + hhmm);
       meta.append(t);
     }
     if (st.place) { const pl = el('span'); pl.innerHTML = pinSvg; pl.append(st.place + (st.area ? ' · ' + st.area : '')); meta.append(pl); }
@@ -941,17 +986,35 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbyZAIwsz_hjORRpkAvvWMB7
     const box2 = el('div', 'g-act');
     if (!when || started) {
       /* אין מה לעשות */
-    } else if (mine) {
-      box2.append(el('p', 'g-mine', mine <= max ? 'את רשומה למשחק. נתראה על המגרש!' : 'את ברשימת ההמתנה, מקום ' + (mine - max) + '. נעדכן אם יתפנה מקום.'));
-      if (saved && saved.phone) box2.append(el('small', 'g-privacy', 'נרשמת עם המספר ' + saved.phone.replace(/^(\d{3})(\d{7})$/, '$1-$2')));
-      if (now < cancelBy && saved && saved.token) {
-        const c = el('button', 'btn btn-line g-cta', busy ? 'רגע…' : 'ביטול הרשמה'); c.type = 'button'; c.disabled = busy;
-        c.addEventListener('click', () => act(async () => {
-          const r = await post({ action: 'cancel', token: saved.token });
-          if (r.ok) { local.clear(); await load(); } else msg = r.message || 'הביטול לא הצליח.';
-        }));
-        box2.append(c);
-      } else box2.append(el('p', 'g-note', 'זמן הביטול עבר. אם לא תוכלי להגיע, כתבי בקבוצת העדכונים.'));
+    } else if (mine.length) {
+      box2.append(el('p', 'g-mine', mine.length === 1 ? 'נרשמת למשחק. נתראה על המגרש!' : 'נרשמו מהמכשיר הזה:'));
+      const ul = el('ul', 'g-mylist');
+      mine.forEach(x => {
+        const li = el('li');
+        const who = el('span', 'g-who');
+        who.append(el('b', null, x.name || 'נרשמת'), ' · ' + fmtPhone(x.phone));
+        const pos = x.mine;
+        who.append(el('small', null, pos && pos > max ? 'רשימת המתנה, מקום ' + (pos - max) : 'רשומה'));
+        li.append(who);
+        if (now < cancelBy) {
+          const c = el('button', 'g-cancel', busy ? 'רגע…' : 'ביטול'); c.type = 'button'; c.disabled = busy;
+          c.setAttribute('aria-label', 'ביטול ההרשמה של ' + (x.name || fmtPhone(x.phone)));
+          c.addEventListener('click', () => act(async () => {
+            const r = await post({ action: 'cancel', token: x.token });
+            if (r.ok) { mineList = mineList.filter(y => y.token !== x.token); store.save(mineList); await load(); }
+            else msg = r.message || 'הביטול לא הצליח.';
+          }));
+          li.append(c);
+        }
+        ul.append(li);
+      });
+      box2.append(ul);
+      if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטול עבר. אם מישהי לא תוכל להגיע, כתבי בקבוצת העדכונים.'));
+      if (!st.paused && !notOpen) {
+        const more = el('button', 'btn btn-line g-cta', 'להרשמת בת נוספת'); more.type = 'button';
+        more.addEventListener('click', () => dlg.open(gameLine(when), full, true));
+        box2.append(more);
+      }
     } else if (st.paused) {
       box2.append(el('p', 'g-note', 'ההרשמה סגורה כרגע. עדכונים בקבוצת העדכונים.'));
     } else if (notOpen) {
