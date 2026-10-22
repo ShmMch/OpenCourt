@@ -121,6 +121,10 @@ a{color:var(--brand)}
 .notice{background:var(--pink-soft);border:3px solid var(--pink-line);border-radius:24px;padding:26px 28px;display:flex;flex-direction:column;gap:10px}
 .notice-title{font-size:19px;color:var(--brand)}
 .notice p{color:var(--ink);margin:0}
+.g-loading{display:flex;align-items:center;gap:14px;background:var(--bg);border:3px solid var(--pink-line);border-radius:24px;padding:28px 24px;color:var(--muted);font-weight:700;min-height:120px}
+.g-spin{width:28px;height:28px;border-radius:50%;border:4px solid var(--pink-soft);border-top-color:var(--brand);animation:g-spin .8s linear infinite;flex-shrink:0}
+@keyframes g-spin{to{transform:rotate(360deg)}}
+.g-stale{font-size:13px;color:var(--muted);font-weight:500}
 .g-mylist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .g-mylist li{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--tint);border-radius:14px;padding:8px 8px 8px 14px}
 .g-who{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;min-width:0;font-variant-numeric:tabular-nums;padding-inline-start:4px}
@@ -379,7 +383,11 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
       <div><h2 id="games-title">המשחק הבא</h2></div>
     </div>
     <div id="game-box">
-      <div class="g-empty">
+      <div class="g-loading" id="g-loading" role="status">
+        <span class="g-spin" aria-hidden="true"></span>
+        <span>טוענת את פרטי המשחק הבא…</span>
+      </div>
+      <div class="g-empty" id="g-fallback" hidden>
         <p>פרטי המשחק הבא והרישום אליו נשלחים בקבוצת העדכונים.</p>
         <a class="btn btn-line" href="#join">לקבוצת העדכונים</a>
       </div>
@@ -790,6 +798,12 @@ document.querySelectorAll('[data-post]').forEach(b => b.addEventListener('click'
 const h = location.hash.slice(1);
 if (h === 'beginners') openPost(0); else show(ids.includes(h) ? h : 'how');
 
+// Next-game card: show the fallback message instead of the loading state
+function showGameFallback() {
+  const l = document.getElementById('g-loading'), f = document.getElementById('g-fallback');
+  if (l) l.hidden = true; if (f) f.hidden = false;
+}
+
 // Floating button: scroll to the next game and open the sign-up dialog if registration is open
 document.getElementById('fab').addEventListener('click', e => {
   e.preventDefault();
@@ -806,7 +820,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
 
 (function nextGame() {
   const box = document.getElementById('game-box');
-  if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(API_URL)) return; // עדיין לא חובר: נשאר הטקסט המקורי
+  if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(API_URL)) { showGameFallback(); return; } // עדיין לא חובר
 
   const months = ['בינואר','בפברואר','במרץ','באפריל','במאי','ביוני','ביולי','באוגוסט','בספטמבר','באוקטובר','בנובמבר','בדצמבר'];
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -836,8 +850,15 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
 
   let st = null, busy = false, msg = '', loading = false, lastErr = '';
 
-  async function getStatus(token) {
-    const r = await fetch(API_URL + '?action=status' + (token ? '&token=' + encodeURIComponent(token) : ''));
+  // הנתונים האחרונים נשמרים בדפדפן, כדי שהכרטיס יופיע מיד בכניסה הבאה ויתעדכן ברקע
+  const LSC = 'elad-women-status';
+  const cacheGet = () => { try { const c = JSON.parse(localStorage.getItem(LSC) || 'null'); return c && c.data && c.data.ok ? c : null; } catch (e) { return null; } };
+  const cachePut = d => { try { localStorage.setItem(LSC, JSON.stringify({ data: d, at: Date.now() })); } catch (e) {} };
+  let stale = false;
+  { const c = cacheGet(); if (c && c.data.when && new Date(c.data.when).getTime() + 2 * 3600e3 > Date.now()) { st = c.data; stale = true; } }
+
+  async function getStatus(tokens) {
+    const r = await fetch(API_URL + '?action=status' + (tokens.length ? '&tokens=' + encodeURIComponent(tokens.join(',')) + '&token=' + encodeURIComponent(tokens[0]) : ''));
     const text = await r.text();
     try { return JSON.parse(text); } catch (x) { throw new Error('התשובה מהסקריפט אינה JSON (HTTP ' + r.status + '): ' + text.slice(0, 120)); }
   }
@@ -846,21 +867,24 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     if (loading) return; loading = true;
     try {
       const list = mineList.slice();
-      const [data, ...per] = await Promise.all([getStatus(''), ...list.map(x => getStatus(x.token).catch(() => null))]);
+      const data = await getStatus(list.map(x => x.token)); // בקשה אחת לכל המידע
       if (data && !data.ok) lastErr = (data.detail || data.message || 'שגיאה') + ' [' + (data.code || '') + ']';
       if (data && data.ok) {
-        lastErr = ''; st = data;
-        // משאירים רק הרשמות למשחק הנוכחי שעדיין קיימות בגיליון
-        const keep = [];
-        list.forEach((x, i) => {
-          const r = per[i];
-          if (x.key !== st.key) return;                 // משחק ישן
-          if (r && r.ok && r.mine === null) return;     // בוטלה (גם אם המארגנות מחקו את השורה)
-          if (r && r.ok) x.mine = r.mine;
-          keep.push(x);
-        });
-        const added = mineList.filter(x => !list.includes(x)); // הרשמות שנוספו בזמן הטעינה
-        mineList = keep.concat(added); store.save(mineList);
+        lastErr = ''; st = data; stale = false;
+        const mm = data.mineMap || null;
+        if (mm || list.length <= 1) {
+          const keep = [];
+          list.forEach(x => {
+            const pos = mm ? mm[x.token] : data.mine;
+            if (x.key !== st.key) return;             // משחק ישן
+            if (pos === null) return;                 // בוטלה
+            if (pos !== undefined) x.mine = pos;
+            keep.push(x);
+          });
+          const added = mineList.filter(x => !list.includes(x));
+          mineList = keep.concat(added); store.save(mineList);
+        }
+        const toCache = Object.assign({}, data); delete toCache.mine; delete toCache.mineMap; cachePut(toCache);
       }
     } catch (e) { lastErr = 'אין חיבור לסקריפט: ' + (e && e.message ? e.message : e); }
     loading = false; render();
@@ -1002,7 +1026,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
 
   function render() {
     if (!st) {
-      // לא התקבלו פרטים: משאירים את טקסט הגיבוי, ומוסיפים שורה קטנה עם סיבת השגיאה
+      if (loading || !lastErr) return; // עדיין טוען: נשאר מצב הטעינה
+      // לא התקבלו פרטים: מציגים את טקסט הגיבוי, ומוסיפים שורה קטנה עם סיבת השגיאה
+      showGameFallback();
       let d = document.getElementById('g-err');
       if (lastErr) { if (!d) { d = el('small', 'g-privacy'); d.id = 'g-err'; d.style.display = 'block'; d.style.marginTop = '8px'; d.dir = 'auto'; box.append(d); } d.textContent = 'פרטי שגיאה: ' + lastErr; }
       return;
@@ -1051,6 +1077,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     txt.append(el('span', null, st.count + ' מתוך ' + max + ' נרשמו'), el('span', null, st.waiting ? st.waiting + ' ברשימת המתנה' : 'נותרו ' + Math.max(0, max - st.count) + ' מקומות'));
     meter.append(bar, txt);
     info.append(top, meta, cd, meter);
+    if (stale) info.append(el('small', 'g-stale', lastErr ? 'לא הצלחנו לעדכן כרגע. מוצגים הנתונים האחרונים.' : 'מתעדכן…'));
 
     const box2 = el('div', 'g-act');
     if (!when || started) {
@@ -1101,6 +1128,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     if (focusId) { const f = document.getElementById(focusId); if (f) f.focus(); }
   }
 
+  if (st) render();
   load();
   setInterval(() => { if (document.visibilityState === 'visible') load(); }, 45e3); // ספירה מתעדכנת כל 45 שניות
   setInterval(render, 30e3); // ספירה לאחור
