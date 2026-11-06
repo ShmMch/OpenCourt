@@ -135,22 +135,27 @@ a{color:var(--brand)}
 .g-who small{color:var(--brand);font-weight:700}
 .g-cancel{flex-shrink:0;font:inherit;font-size:15px;font-weight:700;color:var(--brand);background:var(--bg);border:2px solid var(--pink-line);border-radius:999px;padding:8px 16px;min-height:44px;cursor:pointer}
 .g-cancel:hover{border-color:var(--brand)}
-.dlg{border:0;border-radius:26px;padding:0;width:min(92vw,480px);max-height:92vh;overflow:auto;background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(42,26,42,.35);font-family:var(--font)}
+.dlg{border:0;border-radius:22px;padding:0;width:min(94vw,460px);max-height:min(92vh,92dvh);overflow-x:hidden;overflow-y:auto;scrollbar-width:none;overscroll-behavior:contain;background:var(--bg);color:var(--ink);box-shadow:0 20px 60px rgba(42,26,42,.35);font-family:var(--font)}
+.dlg::-webkit-scrollbar{display:none}
 .dlg::backdrop{background:rgba(42,26,42,.55)}
-.dlg-form{display:flex;flex-direction:column;gap:14px;padding:26px 24px;border-top:8px solid var(--brand)}
-.dlg-form h3{font-size:26px;font-weight:900;color:var(--brand)}
-.dlg-sub{color:var(--ink-soft);font-size:15px;font-weight:500}
-.dlg-fld{display:flex;flex-direction:column;gap:6px;font-size:15px;font-weight:700;color:var(--ink-soft)}
-.dlg-fld input,.dlg-fld select{font:inherit;font-size:17px;padding:11px 14px;border-radius:14px;border:3px solid var(--pink-line);background:var(--bg);color:var(--ink);min-height:48px;min-width:0}
+.dlg-form{display:flex;flex-direction:column;gap:10px;padding:18px 20px 16px;border-top:6px solid var(--brand)}
+.dlg-row{display:grid;grid-template-columns:1fr 1.15fr;gap:10px}
+@media (max-width:330px){.dlg-row{grid-template-columns:1fr}}
+.dlg-form h3{font-size:22px;line-height:1.2;font-weight:900;color:var(--brand)}
+.dlg-sub{color:var(--ink-soft);font-size:14px;font-weight:500;margin-top:-6px}
+.dlg-fld{display:flex;flex-direction:column;gap:4px;font-size:14px;min-width:0;font-weight:700;color:var(--ink-soft)}
+.dlg-fld input,.dlg-fld select{font:inherit;font-size:16px;padding:8px 10px;border-radius:12px;border:2px solid var(--pink-line);background:var(--bg);color:var(--ink);min-height:44px;min-width:0;width:100%}
 .dlg-fld input:focus,.dlg-fld select:focus{outline:none;border-color:var(--brand)}
 .dlg-fld select{appearance:auto;font-weight:400;cursor:pointer}
 .pick-other{display:flex;flex-direction:column;gap:8px}
 .dlg-fld input[type=tel]{text-align:right}
-.pick{display:flex;flex-direction:column;gap:8px;background:var(--tint);border:2px solid var(--pink-line);border-radius:16px;padding:12px}
-.dlg-btns{display:flex;gap:10px;flex-wrap:wrap}
-.dlg-btns .btn{flex:1 1 140px}
+.pick{display:flex;flex-direction:column;gap:6px;margin-top:-4px}
+.dlg-btns{display:flex;gap:10px;margin-top:4px}
+.dlg-btns .btn{min-height:46px;padding:8px 14px;white-space:nowrap}
+.dlg-btns .btn-solid{flex:2}
+.dlg-btns .btn-line{flex:1}
 .g-ride{display:flex;align-items:center;gap:10px;flex-basis:100%;font-weight:700;color:var(--ink);min-height:44px;cursor:pointer}
-.g-consent{font-weight:500;font-size:15px;line-height:1.5;color:var(--ink-soft);align-items:flex-start}
+.g-consent{font-weight:500;font-size:14px;line-height:1.45;color:var(--ink-soft);align-items:flex-start}
 .g-consent input{margin-top:2px}
 .g-ride input{width:22px;height:22px;accent-color:var(--brand);flex-shrink:0}
 .g-count{font-size:clamp(18px,2vw,21px);color:var(--ink)}
@@ -957,18 +962,18 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     const h = el('h3', null, 'הרשמה למשחק'); h.id = 'dlg-title';
     const sub = el('p', 'dlg-sub');
     const fld = (id, label, type, extra) => { const w = el('label', 'dlg-fld'); w.htmlFor = id; w.append(label); const i = el('input'); i.id = id; i.type = type; Object.assign(i, extra); w.append(i); return [w, i]; };
-    const [nameL, name] = fld('d-name', 'שם', 'text', { autocomplete: 'name', maxLength: 40, required: true, placeholder: 'שם פרטי ושם משפחה' });
+    const [nameL, name] = fld('d-name', 'שם', 'text', { autocomplete: 'name', maxLength: 40, required: true, placeholder: 'שם מלא' });
     const [phoneL, phone] = fld('d-phone', 'מספר טלפון נייד', 'tel', { autocomplete: 'tel', inputMode: 'tel', required: true, placeholder: '050-0000000', dir: 'ltr' });
     const rideL = el('label', 'g-ride'); const ride = el('input'); ride.type = 'checkbox'; ride.id = 'd-ride'; rideL.htmlFor = 'd-ride'; rideL.append(ride, 'אני צריכה מקום ברכב מאלעד');
     const okL = el('label', 'g-ride g-consent'); const ok = el('input'); ok.type = 'checkbox'; ok.id = 'd-consent'; okL.htmlFor = 'd-consent'; okL.append(ok, DECL);
     const okNote = el('small', 'g-privacy', 'כל נרשמת מאשרת את ההצהרה בעצמה.');
     const hp = el('input'); hp.name = 'website'; hp.tabIndex = -1; hp.autocomplete = 'off'; hp.setAttribute('aria-hidden', 'true');
-    hp.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;opacity:0';
+    hp.style.cssText = 'position:absolute;width:1px;height:1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);opacity:0;pointer-events:none';
     const msg = el('p', 'g-msg'); msg.setAttribute('role', 'alert');
     const go = el('button', 'btn btn-solid', 'אישור והרשמה'); go.type = 'submit';
     const no = el('button', 'btn btn-line', 'ביטול'); no.type = 'button'; no.addEventListener('click', () => d.close());
     const btns = el('div', 'dlg-btns'); btns.append(go, no);
-    const priv = el('small', 'g-privacy', 'השם והמספר נשמרים רק אצל המארגנות, לצורך עדכונים על המשחק.');
+    const priv = el('small', 'g-privacy', 'כל נרשמת מאשרת את ההצהרה בעצמה. השם והמספר נשמרים רק אצל המארגנות.');
     const pick = el('div', 'pick'); pick.hidden = true;
     // תחנות איסוף קבועות. בחירה מהרשימה בלבד.
     const STATIONS = ['נחלת יצחק', 'קידישיק', 'ישיבת הר"ן'];
@@ -978,7 +983,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     STATIONS.forEach(n => { const o = el('option', null, n); o.value = n; stSel.append(o); });
     pick.append(stL);
     ride.addEventListener('change', () => { pick.hidden = !ride.checked; });
-    f.append(h, sub, nameL, phoneL, rideL, pick, okL, okNote);
+    const row = el('div', 'dlg-row'); row.append(nameL, phoneL);
+    f.append(h, sub, row, rideL, pick, okL);
     if (withHoneypot) f.append(hp);
     f.append(msg, btns, priv);
     d.append(f); document.body.append(d);
