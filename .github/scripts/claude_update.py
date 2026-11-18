@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""Ask Claude for content changes to the site and apply them to the working tree.
+"""Ask an AI model (Claude or Gemini) for content changes to the site and apply them.
 
-Claude only returns a JSON list of file operations. Git (commit/push) is done by
-the workflow, so we never pay for Claude to run tools or loop.
+The model only returns a JSON list of file operations. Git (commit/push) is done by
+the workflow, so we never pay for the model to run tools or loop.
 
 Env:
-  ANTHROPIC_API_KEY   required
+  MODEL               claude-* or gemini-* (default claude-haiku-5-5)
+  ANTHROPIC_API_KEY   required for claude-* models
+  GEMINI_API_KEY      required for gemini-* models
   INSTRUCTIONS        required - what to change
-  MODEL               default claude-sonnet-5-5
   FILES               optional - space separated paths to send. Empty = all site files
   MAX_TOKENS          default 32000
   ANTHROPIC_VERSION   default 2023-06-01
@@ -83,43 +84,111 @@ def repo_files():
 
 def check_path(p):
     if not SAFE_PATH.match(p) or ".." in p.split("/") or p.startswith((".git", "/")):
-        fail(f"Unsafe path from Claude: {p!r}")
+        fail(f"Unsafe path from the model: {p!r}")
     if Path(p).suffix.lower() not in TEXT_EXT:
-        fail(f"Claude tried to change a non-text file: {p}")
+        fail(f"The model tried to change a non-text file: {p}")
     return ROOT / p
 
 
+def post_json(url, body, headers):
+    req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                                 headers={"content-type": "application/json", **headers})
+    try:
+        with urllib.request.urlopen(req, timeout=600) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        fail(f"API error {e.code}: {e.read().decode(errors='replace')[:2000]}")
+
+
 def call_claude(key, model, max_tokens, prompt):
-    body = {
+    """Returns (text, input_tokens, output_tokens)."""
+    res = post_json("https://api.anthropic.com/v1/messages", {
         "model": model,
         "max_tokens": max_tokens,
         "system": SYSTEM,
         "messages": [{"role": "user", "content": prompt}],
         "output_config": {"format": {"type": "json_schema", "schema": SCHEMA}},
-    }
-    req = urllib.request.Request(
-        "https://api.anthropic.com/v1/messages",
-        data=json.dumps(body).encode(),
-        headers={
-            "content-type": "application/json",
-            "x-api-key": key,
-            "anthropic-version": os.environ.get("ANTHROPIC_VERSION") or "2023-06-01",
+    }, {"x-api-key": key, "anthropic-version": os.environ.get("ANTHROPIC_VERSION") or "2023-06-01"})
+    u = res.get("usage", {})
+    tin = u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
+    tout = u.get("output_tokens", 0)
+    if res.get("stop_reason") == "max_tokens":
+        fail("The answer was cut off (max_tokens). Raise MAX_TOKENS or send fewer files.")
+    if res.get("stop_reason") == "refusal":
+        fail("Claude declined the request.")
+    text = next((b["text"] for b in res.get("content", []) if b.get("type") == "text"), None)
+    if text is None:
+        fail(f"No text in Claude's answer: {json.dumps(res)[:1500]}")
+    return text, tin, tout
+
+
+def strip_additional(schema):
+    """Gemini's schema support is narrower; validation is done in Python anyway."""
+    if isinstance(schema, dict):
+        return {k: strip_additional(v) for k, v in schema.items() if k != "additionalProperties"}
+    if isinstance(schema, list):
+        return [strip_additional(v) for v in schema]
+    return schema
+
+
+def call_gemini(key, model, max_tokens, prompt):
+    """Returns (text, input_tokens, output_tokens)."""
+    res = post_json(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+        {
+            "systemInstruction": {"parts": [{"text": SYSTEM}]},
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "maxOutputTokens": max_tokens,
+                "responseMimeType": "application/json",
+                "responseJsonSchema": strip_additional(SCHEMA),
+            },
         },
+        {"x-goog-api-key": key},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=600) as r:
-            return json.load(r)
-    except urllib.error.HTTPError as e:
-        fail(f"Claude API error {e.code}: {e.read().decode(errors='replace')[:2000]}")
+    u = res.get("usageMetadata", {})
+    tin = u.get("promptTokenCount", 0)
+    tout = u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0)
+    cands = res.get("candidates") or []
+    if not cands:
+        fail(f"Gemini returned no answer: {json.dumps(res.get('promptFeedback', res))[:1500]}")
+    reason = cands[0].get("finishReason")
+    if reason == "MAX_TOKENS":
+        fail("The answer was cut off (max tokens). Raise MAX_TOKENS or send fewer files.")
+    if reason not in (None, "STOP"):
+        fail(f"Gemini stopped early: {reason}")
+    parts = cands[0].get("content", {}).get("parts", [])
+    text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+    if not text:
+        fail(f"No text in Gemini's answer: {json.dumps(res)[:1500]}")
+    return text, tin, tout
+
+
+def validate(plan):
+    if not isinstance(plan, dict) or not isinstance(plan.get("changes"), list):
+        fail(f"Unexpected answer shape: {json.dumps(plan, ensure_ascii=False)[:1500]}")
+    plan.setdefault("summary", "")
+    plan.setdefault("commit_message", "")
+    for ch in plan["changes"]:
+        if not isinstance(ch, dict) or ch.get("action") not in ("edit", "write", "delete") or not isinstance(ch.get("path"), str):
+            fail(f"Invalid change: {json.dumps(ch, ensure_ascii=False)[:500]}")
+        ch.setdefault("content", "")
+        ch.setdefault("edits", [])
+        for e in ch["edits"]:
+            if not isinstance(e, dict) or not isinstance(e.get("old"), str) or not isinstance(e.get("new"), str) or not e["old"]:
+                fail(f"Invalid edit in {ch['path']}: {json.dumps(e, ensure_ascii=False)[:500]}")
+    return plan
 
 
 def main():
-    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    model = os.environ.get("MODEL") or "claude-haiku-5-5"
+    gemini = model.startswith("gemini")
+    key = os.environ.get("GEMINI_API_KEY" if gemini else "ANTHROPIC_API_KEY", "").strip()
     instructions = os.environ.get("INSTRUCTIONS", "").strip()
-    model = os.environ.get("MODEL") or "claude-sonnet-5-5"
     max_tokens = int(os.environ.get("MAX_TOKENS") or 32000)
     if not key:
-        fail("No API key. Add the ANTHROPIC_API_KEY secret or fill the api_key input.")
+        name = "GEMINI_API_KEY" if gemini else "ANTHROPIC_API_KEY"
+        fail(f"No API key. Add the {name} secret or fill the api_key input.")
     if not instructions:
         fail("No instructions given.")
 
@@ -136,26 +205,16 @@ def main():
     parts.append("# Instruction\n" + instructions)
     print(f"Model: {model} | sending {len(send)} files: {' '.join(send)}")
 
-    res = call_claude(key, model, max_tokens, "\n\n".join(parts))
-
-    u = res.get("usage", {})
-    tin = u.get("input_tokens", 0) + u.get("cache_read_input_tokens", 0) + u.get("cache_creation_input_tokens", 0)
-    tout = u.get("output_tokens", 0)
+    call = call_gemini if gemini else call_claude
+    text, tin, tout = call(key, model, max_tokens, "\n\n".join(parts))
     pin, pout = PRICES.get(model, (0, 0))
-    cost = f" ≈ ${(tin * pin + tout * pout) / 1e6:.3f}" if pin else ""
+    cost = f" ≈ ${(tin * pin + tout * pout) / 1e6:.3f}" if pin else (" (free tier: $0)" if gemini else "")
     print(f"Tokens: in {tin}, out {tout}{cost}")
 
-    if res.get("stop_reason") == "max_tokens":
-        fail("Claude's answer was cut off (max_tokens). Raise max_tokens or send fewer files.")
-    if res.get("stop_reason") == "refusal":
-        fail("Claude declined the request.")
-    text = next((b["text"] for b in res.get("content", []) if b.get("type") == "text"), None)
-    if text is None:
-        fail(f"No text in Claude's answer: {json.dumps(res)[:1500]}")
     try:
-        plan = json.loads(text)
+        plan = validate(json.loads(text))
     except json.JSONDecodeError:
-        fail(f"Claude's answer is not valid JSON: {text[:1500]}")
+        fail(f"The answer is not valid JSON: {text[:1500]}")
 
     # Validate everything before touching any file, so a bad answer changes nothing.
     staged = []
@@ -195,7 +254,7 @@ def main():
     summ = os.environ.get("GITHUB_STEP_SUMMARY")
     if summ:
         with open(summ, "a", encoding="utf-8") as f:
-            f.write(f"## עדכון מ-Claude\n\n**בקשה:** {instructions}\n\n{plan['summary']}\n\n")
+            f.write(f"## עדכון אוטומטי של האתר\n\n**בקשה:** {instructions}\n\n{plan['summary']}\n\n")
             f.write("".join(f"- `{ch['action']}` {ch['path']}\n" for ch, _, _ in staged) or "_לא בוצעו שינויים_\n")
             f.write(f"\n`{model}` · tokens in {tin} / out {tout}{cost}\n")
 
