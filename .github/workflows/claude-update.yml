@@ -17,7 +17,7 @@ on:
           - gemini-3.5-flash-lite
           - claude-sonnet-5-5
       files:
-        description: "קבצים לשלוח, מופרדים ברווח (ריק = כל קבצי האתר). למשל: js/content.js"
+        description: "אופציונלי: קבצים לשלוח במלואם (ריק = המודל מאתר לבד מה רלוונטי)"
         required: false
         type: string
       dry_run:
