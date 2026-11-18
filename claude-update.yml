@@ -1,0 +1,88 @@
+name: עדכון האתר עם Claude
+
+on:
+  workflow_dispatch:
+    inputs:
+      instructions:
+        description: "מה לשנות באתר"
+        required: true
+        type: string
+      model:
+        description: "מודל (Haiku זול יותר, Sonnet מדויק יותר)"
+        type: choice
+        default: claude-sonnet-5-5
+        options:
+          - claude-sonnet-5-5
+          - claude-haiku-5-5
+          - claude-opus-5-5
+      files:
+        description: "קבצים לשלוח, מופרדים ברווח (ריק = כל קבצי האתר). למשל: js/content.js"
+        required: false
+        type: string
+      dry_run:
+        description: "רק להציג מה ישתנה, בלי קומיט"
+        type: boolean
+        default: false
+      api_key:
+        description: "מפתח API ידני (עדיף להשאיר ריק ולהשתמש ב-Secret)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: claude-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Must run first: hides a manually entered key from all later logs.
+      - name: Hide manual key
+        run: |
+          KEY=$(jq -r '.inputs.api_key // ""' "$GITHUB_EVENT_PATH")
+          if [ -n "$KEY" ]; then
+            echo "::add-mask::$KEY"
+            echo "MANUAL_KEY=$KEY" >> "$GITHUB_ENV"
+          fi
+
+      - uses: actions/checkout@v4
+
+      - name: Ask Claude and apply changes
+        id: claude
+        env:
+          SECRET_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          INSTRUCTIONS: ${{ inputs.instructions }}
+          MODEL: ${{ inputs.model }}
+          FILES: ${{ inputs.files }}
+        run: |
+          export ANTHROPIC_API_KEY="${MANUAL_KEY:-$SECRET_KEY}"
+          python3 .github/scripts/claude_update.py
+
+      - name: Show diff
+        run: |
+          git add -A
+          git diff --cached --stat
+          {
+            echo '<details><summary>Diff</summary>'
+            echo
+            echo '```diff'
+            git diff --cached | head -c 60000
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit and push
+        if: ${{ !inputs.dry_run && steps.claude.outputs.changed == 'true' }}
+        env:
+          MSG: ${{ steps.claude.outputs.commit_message }}
+          REQUEST: ${{ inputs.instructions }}
+        run: |
+          if git diff --cached --quiet; then echo "Nothing to commit"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "$MSG" -m "Requested: $REQUEST" -m "Generated with Claude"
+          git push
