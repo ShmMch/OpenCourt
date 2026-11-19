@@ -327,9 +327,6 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
 
 /* ===== רשימת המתנה ===== */
 .badge.full{font-size:16px;padding:6px 14px;background:var(--orange-deep);color:#fff}
-.meter-bar.split{display:flex;gap:3px;background:transparent}
-.meter-bar.split i{border-radius:999px}
-.meter-bar i.wq{background:repeating-linear-gradient(-45deg,var(--orange-deep) 0 6px,var(--orange) 6px 12px)}
 .meter-txt .wq-txt{color:var(--orange-ink)}
 .game-card.is-waiting{border-color:var(--orange)}
 .wl-me{display:flex;gap:16px;align-items:center;background:var(--orange-soft);border:2px solid var(--orange);border-radius:18px;padding:14px 16px}
@@ -346,3 +343,8 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
 .fab.fab-wait:hover{background:var(--orange-ink)}
 .btn.btn-wait{background:var(--orange-deep);border-color:var(--orange-deep)}
 .btn.btn-wait:hover{background:var(--orange-ink);border-color:var(--orange-ink)}
+.wl-box{display:flex;gap:14px;align-items:flex-start;background:var(--orange-soft);border:2px solid var(--orange);border-radius:18px;padding:14px 16px}
+.wl-ic{flex-shrink:0;width:44px;height:44px;border-radius:12px;background:var(--orange-deep);color:#fff;display:flex;align-items:center;justify-content:center}
+.wl-box div{display:flex;flex-direction:column;gap:4px}
+.wl-box b{font-size:18px;color:var(--orange-ink)}
+.wl-box span:not(.wl-ic){font-size:15px;color:var(--ink-soft)}

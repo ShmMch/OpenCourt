@@ -109,6 +109,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
   const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
   const dayName = w => w.getDay() === 6 ? 'מוצאי שבת' : 'יום ' + days[w.getDay()];
   const pinSvg = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M12 22s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+  const hourglassSvg = '<svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12M6 21h12M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9"/></svg>';
   const clockSvg = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 
   // ההרשמות שבוצעו מהדפדפן הזה (אפשר כמה בנות): משחק, שם, טלפון וקוד ביטול לכל אחת
@@ -334,15 +335,17 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     const txt = el('div', 'meter-txt');
     txt.append(el('span', null, st.count + ' מתוך ' + max + ' נרשמו'), el('span', null, st.waiting ? st.waiting + ' ברשימת המתנה' : 'נותרו ' + Math.max(0, max - st.count) + ' מקומות'));
     meter.append(bar, txt);
-    if (full || waitN) { // המד ממשיך לרשימת ההמתנה, בכתום
-      const tot = max + waitN;
-      fill.style.width = (max / tot * 100) + '%';
-      if (waitN) { const wq = el('i', 'wq'); wq.style.width = (waitN / tot * 100) + '%'; bar.append(wq); }
-      bar.classList.add('split');
-      bar.setAttribute('aria-label', 'המשחק מלא, ' + waitN + ' ברשימת ההמתנה');
-      txt.replaceChildren(el('span', null, max + ' משחקות'), el('span', 'wq-txt', waitN ? waitN + ' ברשימת ההמתנה' : 'רשימת ההמתנה ריקה'));
-    }
+    if (full) txt.replaceChildren(el('span', null, max + ' מתוך ' + max + ' · המשחק מלא'), el('span', 'wq-txt', waitN ? waitN + ' ממתינות בתור' : 'אין ממתינות בתור'));
     info.append(top, meta, cd, meter);
+    // משחק מלא, למי שעוד לא רשומה: מה זה אומר ומה יקרה אם תירשם
+    if (full && when && !started && !st.paused && !notOpen && !mine.length) {
+      const bn = el('div', 'wl-box'); const ic = el('span', 'wl-ic'); ic.innerHTML = hourglassSvg;
+      const t = el('div');
+      t.append(el('b', null, 'המשחק מלא, אבל יש רשימת המתנה'),
+        el('span', null, (waitN ? (waitN === 1 ? 'בת אחת כבר ממתינה בתור. ' : waitN + ' בנות כבר ממתינות בתור. ') : '')
+          + 'נרשמת עכשיו? תהיי מקום ' + (waitN + 1) + ' בתור. כשמישהי מבטלת, הראשונה בתור נכנסת למשחק אוטומטית.'));
+      bn.append(ic, t); info.append(bn);
+    }
     if (myWait.length) card.classList.add('is-waiting');
     if (stale) info.append(el('small', 'g-stale', lastErr ? 'לא הצלחנו לעדכן כרגע. מוצגים הנתונים האחרונים.' : 'מתעדכן…'));
 
@@ -354,7 +357,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
       if (anyWait && mine.length === 1) { // ריבוע "מקום X בתור" 
         const me = el('div', 'wl-me');
         const pos = el('div', 'wl-pos'); pos.append(el('small', null, 'מקום'), el('b', null, String(mine[0].mine - max)), el('small', null, 'בתור'));
-        const t = el('div'); t.append(el('b', null, 'את ברשימת ההמתנה'), el('span', null, 'אם מישהי תבטל, תעלי למשחק אוטומטית ותראי את זה כאן.'));
+        const q = mine[0].mine - max; // המקום בתור
+        const t = el('div'); t.append(el('b', null, 'את ברשימת ההמתנה'),
+          el('span', null, (q === 1 ? 'את הראשונה בתור: הביטול הבא, ואת במשחק!' : 'עוד ' + q + ' ביטולים, ואת במשחק.')));
         me.append(pos, t); box2.append(me);
       } else box2.append(el('p', 'g-mine', mine.length > 1 ? 'נרשמו מהמכשיר הזה:' : anyWait ? 'נרשמת לרשימת ההמתנה. אם מישהי תבטל, תעלי למשחק אוטומטית.' : 'נרשמת למשחק. נתראה על המגרש!'));
       const ul = el('ul', 'g-mylist');
