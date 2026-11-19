@@ -85,6 +85,8 @@ function showGameFallback() {
 document.getElementById('fab').addEventListener('click', e => {
   e.preventDefault();
   document.getElementById('games').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const state = document.getElementById('fab').dataset.state;
+  if (state !== 'open' && state !== 'wait') return; // רשומה כבר: רק גוללים לכרטיס
   setTimeout(() => {
     const b = Array.from(document.querySelectorAll('#game-box button.g-cta')).find(x => /^להרשמה/.test(x.textContent.trim()));
     if (b) b.click();
@@ -132,14 +134,17 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
   let mineList = store.load();
   const fmtPhone = p => String(p || '').replace(/^(\d{3})(\d{7})$/, '$1-$2');
 
-  let st = null, busy = false, msg = '', loading = false, lastErr = '';
+  let st = null, busy = false, busyToken = '', msgs = {}, loading = false, again = false, lastErr = '';
+  // רשימת המשחקים הקרובים. סקריפט ישן מחזיר משחק אחד בשדות העליונים.
+  const gamesOf = d => !d ? [] : Array.isArray(d.games) ? d.games : d.when || d.key ? [d] : [];
+  const findGame = key => gamesOf(st).find(g => g.key === key);
 
   // הנתונים האחרונים נשמרים בדפדפן, כדי שהכרטיס יופיע מיד בכניסה הבאה ויתעדכן ברקע
   const LSC = 'elad-women-status';
   const cacheGet = () => { try { const c = JSON.parse(localStorage.getItem(LSC) || 'null'); return c && c.data && c.data.ok ? c : null; } catch (e) { return null; } };
   const cachePut = d => { try { localStorage.setItem(LSC, JSON.stringify({ data: d, at: Date.now() })); } catch (e) {} };
   let stale = false;
-  { const c = cacheGet(); if (c && c.data.when && new Date(c.data.when).getTime() + 2 * 3600e3 > Date.now()) { st = c.data; stale = true; } }
+  { const c = cacheGet(); if (c && gamesOf(c.data).some(g => g.when && new Date(g.when).getTime() + 2 * 3600e3 > Date.now())) { st = c.data; stale = true; } }
 
   async function getStatus(tokens) {
     if (window.__earlyStatus && window.__earlyTokens === tokens.join(',')) { // הבקשה שכבר יצאה בתחילת טעינת הדף
@@ -152,7 +157,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
   }
 
   async function load() {
-    if (loading) return; loading = true;
+    if (loading) { again = true; return; } // בקשה כבר בדרך: נטען שוב כשהיא תסתיים, כדי לא להציג מידע ישן
+    loading = true; again = false;
     try {
       const list = mineList.slice();
       const data = await getStatus(list.map(x => x.token)); // בקשה אחת לכל המידע
@@ -162,9 +168,12 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
         const mm = data.mineMap || null;
         if (mm || list.length <= 1) {
           const keep = [];
+          const now = new Set(mineList.map(x => x.token)); // מה שבוטל בזמן שהבקשה הייתה בדרך לא חוזר
+          const keys = new Set(gamesOf(st).map(g => g.key));
           list.forEach(x => {
+            if (!now.has(x.token)) return;
             const pos = mm ? mm[x.token] : data.mine;
-            if (x.key !== st.key) return;             // משחק ישן
+            if (!keys.has(x.key)) return;             // משחק שכבר עבר
             if (pos === null) return;                 // בוטלה
             if (pos !== undefined) x.mine = pos;
             keep.push(x);
@@ -175,7 +184,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
         const toCache = Object.assign({}, data); delete toCache.mine; delete toCache.mineMap; cachePut(toCache);
       }
     } catch (e) { lastErr = 'אין חיבור לסקריפט: ' + (e && e.message ? e.message : e); }
-    loading = false; render();
+    loading = false;
+    if (again) { load(); return; } // בזמן הבקשה בוצעה פעולה: טוענים שוב לפני שמציגים
+    render();
   }
 
   async function post(body) {
@@ -200,10 +211,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' ו־' + parts[parts.length - 1] : parts[0];
   }
 
-  async function act(fn) {
-    if (busy) return; busy = true; msg = ''; render();
-    try { await fn(); } catch (e) { msg = 'אין חיבור כרגע. נסי שוב בעוד רגע.'; }
-    busy = false; render();
+  async function act(key, fn) {
+    if (busy) return; busy = true; msgs = {}; render();
+    try { const m = await fn(); if (m) msgs[key] = m; } catch (e) { msgs[key] = 'אין חיבור כרגע. נסי שוב בעוד רגע.'; }
+    busy = false; busyToken = ''; render();
   }
 
   // Sign-up dialog: name, phone, health declaration. Built once, outside the card that re-renders.
@@ -240,14 +251,16 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
       if (!ok.checked) { msg.textContent = 'כדי להירשם צריך לאשר את הצהרת הבריאות והאחריות.'; ok.focus(); return; }
       go.disabled = true; go.textContent = 'רגע…';
       try {
-        const err = await onSubmit({ name: nm, phone: ph, website: hp.value });
+        const err = await onSubmit({ name: nm, phone: ph, website: hp.value, key: f.gameKey() });
         if (err) msg.textContent = err;
         else d.close();
       } catch (x) { msg.textContent = 'אין חיבור כרגע. נסי שוב בעוד רגע.'; }
       go.disabled = false; go.textContent = 'אישור והרשמה';
     });
+    f.gameKey = () => d.dataset.key;
     return {
-      open(line, full, another) {
+      open(line, full, another, key) {
+        d.dataset.key = key || '';
         sub.textContent = line; h.textContent = another ? 'הרשמה של בת נוספת' : full ? 'הרשמה לרשימת ההמתנה' : 'הרשמה למשחק';
         msg.textContent = ''; ok.checked = false;
         if (another) { name.value = ''; phone.value = ''; }
@@ -258,15 +271,16 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     };
   }
 
-  const gameLine = w => w ? dayName(w) + ', ' + w.getDate() + ' ' + months[w.getMonth()] + ' · ' + String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0') + (st && st.place ? ' · ' + st.place : '') : '';
-  const dlg = makeSignupDialog(async ({ name, phone, website }) => {
+  const hhmm = w => String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0');
+  const gameLine = (w, g) => w ? dayName(w) + ', ' + w.getDate() + ' ' + months[w.getMonth()] + ' · ' + hhmm(w) + (g && g.place ? ' · ' + g.place : '') : '';
+  const dlg = makeSignupDialog(async ({ name, phone, website, key }) => {
     // אין יותר הסעות: השדות נשלחים ריקים כדי שהסקריפט ימשיך לעבוד בלי שינוי
-    const r = await post({ action: 'signup', name, phone, ride: false, pickup: '', lat: null, lng: null, consent: true, website });
+    const r = await post({ action: 'signup', key, name, phone, ride: false, pickup: '', lat: null, lng: null, consent: true, website });
     if (!r.ok) return r.message || 'ההרשמה לא הצליחה.';
     if (r.token) {
       mineList.push({ key: r.key, token: r.token, name, phone, mine: r.mine }); store.save(mineList);
       if (mineList.length === 1) { try { localStorage.setItem('elad-women-name', name); localStorage.setItem('elad-women-phone', phone); } catch (x) {} }
-      st.count = r.count; st.waiting = r.waiting;
+      const g = findGame(r.key); if (g) { g.count = r.count; g.waiting = r.waiting; }
     }
     render(); load(); return null;
   }, true);
@@ -275,7 +289,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
   const fabEl = document.getElementById('fab'), fabTxt = fabEl.lastElementChild, fabDefault = fabTxt.textContent;
   function updateFab(v) {
     fabTxt.textContent = v ? v[1] : fabDefault;
-    fabEl.classList.toggle('fab-wait', !!v && v[0] === 'wait');
+    fabEl.dataset.state = v ? v[0] : '';
+    fabEl.classList.toggle('fab-wait', !!v && (v[0] === 'wait' || v[0] === 'wait-me'));
   }
 
   function render() {
@@ -287,18 +302,29 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
       if (lastErr) { if (!d) { d = el('small', 'g-privacy'); d.id = 'g-err'; d.style.display = 'block'; d.style.marginTop = '8px'; d.dir = 'auto'; box.append(d); } d.textContent = 'פרטי שגיאה: ' + lastErr; }
       return;
     }
-    const kept = {}; box.querySelectorAll('input').forEach(i => { kept[i.id] = i.type === 'checkbox' ? i.checked : i.value; });
-    const focusId = document.activeElement && box.contains(document.activeElement) ? document.activeElement.id : null;
     box.replaceChildren();
+    const list = gamesOf(st);
+    const title = document.getElementById('games-title');
+    if (title) title.textContent = list.length > 1 ? 'המשחקים הקרובים' : 'המשחק הבא';
+    const fabs = [];
+    (list.length ? list : [{}]).forEach(g => box.append(renderGame(g, fabs)));
+    if (stale) box.append(el('small', 'g-stale', lastErr ? 'לא הצלחנו לעדכן כרגע. מוצגים הנתונים האחרונים.' : 'מתעדכן…'));
+    // הכפתור למעלה: קודם מצב אישי (בתור / רשומה), אחר כך משחק פתוח להרשמה
+    updateFab(fabs.find(f => f[0] === 'wait-me') || fabs.find(f => f[0] === 'in') || fabs.find(f => f[0] === 'open' || f[0] === 'wait') || null);
+  }
 
-    const when = st.when ? new Date(st.when) : null;
-    const now = Date.now(), max = st.max || 12;
+  // כרטיס של משחק אחד
+  function renderGame(g, fabs) {
+    const when = g.when ? new Date(g.when) : null;
+    const now = Date.now(), max = g.max || 12, key = g.key || '';
     // הזמנים מגיעים מהסקריפט (הוא שמאשר בפועל). אם חסרים, מחושבים לפי הכללים למעלה.
-    const openAt = st.openAt ? new Date(st.openAt).getTime() : when ? regOpenAt(when) : 0;
-    const cancelBy = st.cancelBy ? new Date(st.cancelBy).getTime() : when ? regCancelBy(when) : 0;
+    const openAt = g.openAt ? new Date(g.openAt).getTime() : when ? regOpenAt(when) : 0;
+    const cancelBy = g.cancelBy ? new Date(g.cancelBy).getTime() : when ? regCancelBy(when) : 0;
     const started = when && now >= when.getTime();
     const notOpen = when && now < openAt;
-    const mine = mineList.filter(x => x.key === st.key);
+    const paused = !!st.paused;
+    const mine = mineList.filter(x => x.key === key && key);
+    const count = g.count || 0, waitN = g.waiting || 0;
 
     const card = el('article', 'game-card');
     const dt = el('div', 'g-date');
@@ -306,39 +332,34 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     else dt.append(el('b', null, '?'), el('span', null, 'בקרוב'));
     const info = el('div', 'g-info');
 
-    const full = st.count >= max;
-    const waitN = st.waiting || 0;
+    const full = count >= max;
     const waits = x => x.mine && x.mine > max; // ברשימת ההמתנה
     const myWait = mine.filter(waits);
-    const status = !when ? ['', 'פרטים בקרוב'] : st.paused ? ['', 'ההרשמה סגורה כרגע'] : started ? ['', 'המשחק התחיל'] : notOpen ? ['', 'ההרשמה תיפתח בקרוב'] : full ? ['full', 'מלא, אפשר להיכנס להמתנה'] : ['open', 'ההרשמה פתוחה'];
+    const status = !when ? ['', 'פרטים בקרוב'] : paused ? ['', 'ההרשמה סגורה כרגע'] : started ? ['', 'המשחק התחיל'] : notOpen ? ['', 'ההרשמה תיפתח בקרוב'] : full ? ['full', ''] : ['open', 'ההרשמה פתוחה'];
     if (status[0] === 'full') status[1] = waitN ? 'מלא · ' + waitN + ' בהמתנה' : 'מלא · אפשר להמתין';
     const top = el('div', 'g-top');
-    top.append(el('h3', null, st.title || 'משחק כדורסל'), el('span', 'badge ' + status[0], status[1]));
+    top.append(el('h3', null, g.title || st.title || 'משחק כדורסל'), el('span', 'badge ' + status[0], status[1]));
 
     const meta = el('div', 'g-meta');
-    if (when) {
-      const t = el('span'); t.innerHTML = clockSvg;
-      const hhmm = String(when.getHours()).padStart(2, '0') + ':' + String(when.getMinutes()).padStart(2, '0');
-      t.append(dayName(when) + ', ' + when.getDate() + ' ' + months[when.getMonth()] + ' · ' + hhmm);
-      meta.append(t);
-    }
-    if (st.place) { const pl = el('span'); pl.innerHTML = pinSvg; pl.append(st.place + (st.area ? ' · ' + st.area : '')); meta.append(pl); }
-    if (st.mapUrl) { const a = el('a', null, 'לפתיחה במפות'); a.href = st.mapUrl; a.target = '_blank'; a.rel = 'noopener'; a.style.fontWeight = '700'; meta.append(a); }
+    if (when) { const t = el('span'); t.innerHTML = clockSvg; t.append(dayName(when) + ', ' + when.getDate() + ' ' + months[when.getMonth()] + ' · ' + hhmm(when)); meta.append(t); }
+    if (g.place) { const pl = el('span'); pl.innerHTML = pinSvg; pl.append(g.place + (g.area ? ' · ' + g.area : '')); meta.append(pl); }
+    if (g.mapUrl) { const a = el('a', null, 'לפתיחה במפות'); a.href = g.mapUrl; a.target = '_blank'; a.rel = 'noopener'; a.style.fontWeight = '700'; meta.append(a); }
 
     const cd = el('p', 'g-count');
     if (when && !started) { cd.append('המשחק מתחיל בעוד '); cd.append(el('b', null, until(when.getTime() - now))); }
     else if (started) cd.append('המשחק כבר התחיל. נתראה בפעם הבאה!');
 
     const meter = el('div', 'meter');
-    const bar = el('div', 'meter-bar'); const fill = el('i'); fill.style.width = Math.min(100, st.count / max * 100) + '%'; bar.append(fill);
-    bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', st.count + ' מתוך ' + max + ' מקומות תפוסים');
+    const bar = el('div', 'meter-bar'); const fill = el('i'); fill.style.width = Math.min(100, count / max * 100) + '%'; bar.append(fill);
+    bar.setAttribute('role', 'img'); bar.setAttribute('aria-label', count + ' מתוך ' + max + ' מקומות תפוסים');
     const txt = el('div', 'meter-txt');
-    txt.append(el('span', null, st.count + ' מתוך ' + max + ' נרשמו'), el('span', null, st.waiting ? st.waiting + ' ברשימת המתנה' : 'נותרו ' + Math.max(0, max - st.count) + ' מקומות'));
+    if (full) txt.append(el('span', null, max + ' מתוך ' + max + ' · המשחק מלא'), el('span', 'wq-txt', waitN === 1 ? 'ממתינה אחת בתור' : waitN ? waitN + ' ממתינות בתור' : 'אין ממתינות בתור'));
+    else txt.append(el('span', null, count + ' מתוך ' + max + ' נרשמו'), el('span', null, 'נותרו ' + Math.max(0, max - count) + ' מקומות'));
     meter.append(bar, txt);
-    if (full) txt.replaceChildren(el('span', null, max + ' מתוך ' + max + ' · המשחק מלא'), el('span', 'wq-txt', waitN ? waitN + ' ממתינות בתור' : 'אין ממתינות בתור'));
-    info.append(top, meta, cd, meter);
+    info.append(top, meta, cd);
+    if (when) info.append(meter);
     // משחק מלא, למי שעוד לא רשומה: מה זה אומר ומה יקרה אם תירשם
-    if (full && when && !started && !st.paused && !notOpen && !mine.length) {
+    if (full && when && !started && !paused && !notOpen && !mine.length) {
       const bn = el('div', 'wl-box'); const ic = el('span', 'wl-ic'); ic.innerHTML = hourglassSvg;
       const t = el('div');
       t.append(el('b', null, 'המשחק מלא, אבל יש רשימת המתנה'),
@@ -347,76 +368,82 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
       bn.append(ic, t); info.append(bn);
     }
     if (myWait.length) card.classList.add('is-waiting');
-    if (stale) info.append(el('small', 'g-stale', lastErr ? 'לא הצלחנו לעדכן כרגע. מוצגים הנתונים האחרונים.' : 'מתעדכן…'));
 
     const box2 = el('div', 'g-act');
+    const line = gameLine(when, g);
     if (!when || started) {
       /* אין מה לעשות */
     } else if (mine.length) {
       const anyIn = mine.some(x => !waits(x)), anyWait = mine.some(waits);
-      if (anyWait && mine.length === 1) { // ריבוע "מקום X בתור" 
+      if (anyWait && mine.length === 1) { // ריבוע "מקום X בתור"
+        const q = mine[0].mine - max;
         const me = el('div', 'wl-me');
-        const pos = el('div', 'wl-pos'); pos.append(el('small', null, 'מקום'), el('b', null, String(mine[0].mine - max)), el('small', null, 'בתור'));
-        const q = mine[0].mine - max; // המקום בתור
-        const t = el('div'); t.append(el('b', null, 'את ברשימת ההמתנה'),
-          el('span', null, (q === 1 ? 'את הראשונה בתור: הביטול הבא, ואת במשחק!' : 'עוד ' + q + ' ביטולים, ואת במשחק.')));
+        const pos = el('div', 'wl-pos'); pos.append(el('small', null, 'מקום'), el('b', null, String(q)), el('small', null, 'בתור'));
+        const t = el('div'); t.append(el('b', null, 'את ברשימת ההמתנה'), el('span', null, q === 1 ? 'את הראשונה בתור: הביטול הבא, ואת במשחק!' : 'עוד ' + q + ' ביטולים, ואת במשחק.'));
         me.append(pos, t); box2.append(me);
-      } else box2.append(el('p', 'g-mine', mine.length > 1 ? 'נרשמו מהמכשיר הזה:' : anyWait ? 'נרשמת לרשימת ההמתנה. אם מישהי תבטל, תעלי למשחק אוטומטית.' : 'נרשמת למשחק. נתראה על המגרש!'));
+      } else box2.append(el('p', 'g-mine', mine.length > 1 ? 'נרשמו מהמכשיר הזה:' : 'נרשמת למשחק. נתראה על המגרש!'));
       const ul = el('ul', 'g-mylist');
       mine.forEach(x => {
         const li = el('li'); if (waits(x)) li.classList.add('wl-row');
         if (waits(x) && mine.length === 1) li.classList.add('wl-quiet');
         const who = el('span', 'g-who');
         who.append(el('b', null, x.name || 'נרשמת'), ' · ' + fmtPhone(x.phone));
-        const pos = x.mine;
-        who.append(el('small', null, pos && pos > max ? 'רשימת המתנה, מקום ' + (pos - max) : 'רשומה'));
+        who.append(el('small', null, waits(x) ? 'רשימת המתנה, מקום ' + (x.mine - max) : 'רשומה'));
         li.append(who);
         if (now < cancelBy) {
-          const c = el('button', 'g-cancel', busy ? 'רגע…' : 'ביטול'); c.type = 'button'; c.disabled = busy;
+          const c = el('button', 'g-cancel', busy && busyToken === x.token ? 'רגע…' : 'ביטול'); c.type = 'button'; c.disabled = busy;
           c.setAttribute('aria-label', 'ביטול ההרשמה של ' + (x.name || fmtPhone(x.phone)));
-          c.addEventListener('click', () => act(async () => {
+          c.addEventListener('click', () => { busyToken = x.token; act(key, async () => {
             const r = await post({ action: 'cancel', token: x.token });
-            if (r.ok) { mineList = mineList.filter(y => y.token !== x.token); store.save(mineList); await load(); }
-            else msg = r.message || 'הביטול לא הצליח.';
-          }));
+            if (!r.ok) return r.message || 'הביטול לא הצליח.';
+            // מעדכנים מיד את מה שמוצג, ואחר כך מאמתים מול הסקריפט
+            const pos = x.mine;
+            mineList = mineList.filter(y => y.token !== x.token);
+            mineList.forEach(y => { if (y.key === key && pos && y.mine > pos) y.mine--; });
+            store.save(mineList);
+            if (typeof r.count === 'number') { g.count = r.count; g.waiting = r.waiting; }
+            else if (pos && pos <= max && g.waiting > 0) g.waiting--;
+            else if (pos && pos > max) g.waiting = Math.max(0, g.waiting - 1);
+            else g.count = Math.max(0, g.count - 1);
+            load();
+          }); });
           li.append(c);
         }
         ul.append(li);
       });
       box2.append(ul);
-      const hm = t => { const x = new Date(t); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); };
       if (anyIn) {
         if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטול עבר, והמקום כבר בתשלום גם אם לא מגיעות. אם מישהי לא תוכל להגיע, כתבי בקבוצת העדכונים כדי שמישהי מההמתנה תיכנס.'));
-        else box2.append(el('p', 'g-note', 'אפשר לבטל עד ' + hm(cancelBy) + ' (חצי שעה לפני המשחק). אחרי זה המקום בתשלום גם אם לא מגיעות.'));
+        else box2.append(el('p', 'g-note', 'אפשר לבטל עד ' + hhmm(new Date(cancelBy)) + ' (חצי שעה לפני המשחק). אחרי זה המקום בתשלום גם אם לא מגיעות.'));
       }
       if (anyWait) {
         if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטולים עבר ולא התפנה מקום מרשימת ההמתנה. אם יתפנה מקום ברגע האחרון, נעדכן בקבוצה.'));
-        else box2.append(el('p', 'g-note', 'אם תעלי למשחק, זה יופיע כאן. מאותו רגע את רשומה לכל דבר: ביטול אפשרי עד ' + hm(cancelBy) + ', ואחרי זה המקום בתשלום.'));
+        else box2.append(el('p', 'g-note', 'אם תעלי למשחק, זה יופיע כאן. מאותו רגע את רשומה לכל דבר: ביטול אפשרי עד ' + hhmm(new Date(cancelBy)) + ', ואחרי זה המקום בתשלום.'));
       }
-      if (!st.paused && !notOpen) {
+      if (!paused && !notOpen) {
         const more = el('button', 'btn btn-line g-cta', 'להרשמת בת נוספת'); more.type = 'button';
-        more.addEventListener('click', () => dlg.open(gameLine(when), full, true));
+        more.addEventListener('click', () => dlg.open(line, full, true, key));
         box2.append(more);
       }
-    } else if (st.paused) {
+    } else if (paused) {
       box2.append(el('p', 'g-note', 'ההרשמה סגורה כרגע. עדכונים בקבוצת העדכונים.'));
     } else if (notOpen) {
       box2.append(el('p', 'g-note', 'ההרשמה תיפתח בעוד ' + until(openAt - now) + '.'));
     } else {
       const b = el('button', 'btn btn-solid g-cta' + (full ? ' btn-wait' : ''), full ? 'להרשמה לרשימת ההמתנה' : 'להרשמה'); b.type = 'button';
-      b.addEventListener('click', () => dlg.open(gameLine(when), full));
+      b.addEventListener('click', () => dlg.open(line, full, false, key));
       box2.append(b);
     }
-    if (msg) box2.append(el('p', 'g-msg', msg));
+    if (msgs[key]) box2.append(el('p', 'g-msg', msgs[key]));
     info.append(box2);
-    card.append(dt, info); box.append(card);
-    updateFab(!when || started || st.paused || notOpen ? null
-      : myWait.length && myWait.length === mine.length ? ['wait', 'ברשימת ההמתנה · מקום ' + (Math.min(...myWait.map(x => x.mine)) - max)]
-      : mine.length ? ['in', 'נרשמת · למשחק הקרוב']
-      : full ? ['wait', 'להרשמה לרשימת ההמתנה'] : null);
+    card.append(dt, info);
 
-    Object.entries(kept).forEach(([id, v]) => { const i = document.getElementById(id); if (!i) return; if (i.type === 'checkbox') i.checked = v; else i.value = v; });
-    if (focusId) { const f = document.getElementById(focusId); if (f) f.focus(); }
+    if (when && !started && !paused && !notOpen) {
+      if (myWait.length && myWait.length === mine.length) fabs.push(['wait-me', 'ברשימת ההמתנה · מקום ' + (Math.min(...myWait.map(x => x.mine)) - max)]);
+      else if (mine.length) fabs.push(['in', 'נרשמת · למשחק ב' + dayName(when)]);
+      else fabs.push(full ? ['wait', 'להרשמה לרשימת ההמתנה'] : ['open', 'להרשמה למשחק הקרוב']);
+    }
+    return card;
   }
 
   if (st) render();
