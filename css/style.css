@@ -324,3 +324,25 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
 @media (max-width:600px){.brand > span{display:none}.fab{inset-inline-end:24px;top:calc(54px + env(safe-area-inset-top, 0px));font-size:15px;min-height:44px;padding:8px 18px 8px 30px}.fab-ball{width:34px;height:34px;top:-16px;inset-inline-end:-12px}.fab-ball svg{width:34px;height:34px}}
 @media (prefers-reduced-motion:reduce){.fab{animation:none}.fab:hover .fab-ball{transform:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* ===== רשימת המתנה ===== */
+.badge.full{font-size:16px;padding:6px 14px;background:var(--orange-deep);color:#fff}
+.meter-bar.split{display:flex;gap:3px;background:transparent}
+.meter-bar.split i{border-radius:999px}
+.meter-bar i.wq{background:repeating-linear-gradient(-45deg,var(--orange-deep) 0 6px,var(--orange) 6px 12px)}
+.meter-txt .wq-txt{color:var(--orange-ink)}
+.game-card.is-waiting{border-color:var(--orange)}
+.wl-me{display:flex;gap:16px;align-items:center;background:var(--orange-soft);border:2px solid var(--orange);border-radius:18px;padding:14px 16px}
+.wl-pos{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:76px;height:84px;border-radius:16px;background:var(--orange-deep);color:#fff;line-height:1}
+.wl-pos b{font-size:40px;font-weight:900;margin:2px 0}
+.wl-pos small{font-size:13px;font-weight:700}
+.wl-me div:last-child{display:flex;flex-direction:column;gap:4px}
+.wl-me div:last-child b{font-size:19px;color:var(--orange-ink)}
+.wl-me div:last-child span{color:var(--ink-soft);font-size:15px}
+.g-mylist li.wl-row{background:var(--orange-soft);border:2px solid var(--orange)}
+.g-mylist li.wl-row .g-who small{background:var(--orange-deep);color:#fff;border-radius:999px;padding:2px 10px}
+.g-mylist li.wl-quiet .g-who small{display:none}
+.fab.fab-wait{background:var(--orange-deep)}
+.fab.fab-wait:hover{background:var(--orange-ink)}
+.btn.btn-wait{background:var(--orange-deep);border-color:var(--orange-deep)}
+.btn.btn-wait:hover{background:var(--orange-ink);border-color:var(--orange-ink)}

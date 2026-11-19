@@ -270,6 +270,13 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     render(); load(); return null;
   }, true);
 
+  // הכפתור הצף למעלה: הטקסט והצבע לפי המצב. null = ברירת המחדל
+  const fabEl = document.getElementById('fab'), fabTxt = fabEl.lastElementChild, fabDefault = fabTxt.textContent;
+  function updateFab(v) {
+    fabTxt.textContent = v ? v[1] : fabDefault;
+    fabEl.classList.toggle('fab-wait', !!v && v[0] === 'wait');
+  }
+
   function render() {
     if (!st) {
       if (loading || !lastErr) return; // עדיין טוען: נשאר מצב הטעינה
@@ -299,7 +306,11 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     const info = el('div', 'g-info');
 
     const full = st.count >= max;
+    const waitN = st.waiting || 0;
+    const waits = x => x.mine && x.mine > max; // ברשימת ההמתנה
+    const myWait = mine.filter(waits);
     const status = !when ? ['', 'פרטים בקרוב'] : st.paused ? ['', 'ההרשמה סגורה כרגע'] : started ? ['', 'המשחק התחיל'] : notOpen ? ['', 'ההרשמה תיפתח בקרוב'] : full ? ['full', 'מלא, אפשר להיכנס להמתנה'] : ['open', 'ההרשמה פתוחה'];
+    if (status[0] === 'full') status[1] = waitN ? 'מלא · ' + waitN + ' בהמתנה' : 'מלא · אפשר להמתין';
     const top = el('div', 'g-top');
     top.append(el('h3', null, st.title || 'משחק כדורסל'), el('span', 'badge ' + status[0], status[1]));
 
@@ -323,19 +334,33 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     const txt = el('div', 'meter-txt');
     txt.append(el('span', null, st.count + ' מתוך ' + max + ' נרשמו'), el('span', null, st.waiting ? st.waiting + ' ברשימת המתנה' : 'נותרו ' + Math.max(0, max - st.count) + ' מקומות'));
     meter.append(bar, txt);
+    if (full || waitN) { // המד ממשיך לרשימת ההמתנה, בכתום
+      const tot = max + waitN;
+      fill.style.width = (max / tot * 100) + '%';
+      if (waitN) { const wq = el('i', 'wq'); wq.style.width = (waitN / tot * 100) + '%'; bar.append(wq); }
+      bar.classList.add('split');
+      bar.setAttribute('aria-label', 'המשחק מלא, ' + waitN + ' ברשימת ההמתנה');
+      txt.replaceChildren(el('span', null, max + ' משחקות'), el('span', 'wq-txt', waitN ? waitN + ' ברשימת ההמתנה' : 'רשימת ההמתנה ריקה'));
+    }
     info.append(top, meta, cd, meter);
+    if (myWait.length) card.classList.add('is-waiting');
     if (stale) info.append(el('small', 'g-stale', lastErr ? 'לא הצלחנו לעדכן כרגע. מוצגים הנתונים האחרונים.' : 'מתעדכן…'));
 
     const box2 = el('div', 'g-act');
     if (!when || started) {
       /* אין מה לעשות */
     } else if (mine.length) {
-      const waits = x => x.mine && x.mine > max; // ברשימת ההמתנה
       const anyIn = mine.some(x => !waits(x)), anyWait = mine.some(waits);
-      box2.append(el('p', 'g-mine', mine.length > 1 ? 'נרשמו מהמכשיר הזה:' : anyWait ? 'נרשמת לרשימת ההמתנה. אם מישהי תבטל, תעלי למשחק אוטומטית.' : 'נרשמת למשחק. נתראה על המגרש!'));
+      if (anyWait && mine.length === 1) { // ריבוע "מקום X בתור" 
+        const me = el('div', 'wl-me');
+        const pos = el('div', 'wl-pos'); pos.append(el('small', null, 'מקום'), el('b', null, String(mine[0].mine - max)), el('small', null, 'בתור'));
+        const t = el('div'); t.append(el('b', null, 'את ברשימת ההמתנה'), el('span', null, 'אם מישהי תבטל, תעלי למשחק אוטומטית ותראי את זה כאן.'));
+        me.append(pos, t); box2.append(me);
+      } else box2.append(el('p', 'g-mine', mine.length > 1 ? 'נרשמו מהמכשיר הזה:' : anyWait ? 'נרשמת לרשימת ההמתנה. אם מישהי תבטל, תעלי למשחק אוטומטית.' : 'נרשמת למשחק. נתראה על המגרש!'));
       const ul = el('ul', 'g-mylist');
       mine.forEach(x => {
-        const li = el('li');
+        const li = el('li'); if (waits(x)) li.classList.add('wl-row');
+        if (waits(x) && mine.length === 1) li.classList.add('wl-quiet');
         const who = el('span', 'g-who');
         who.append(el('b', null, x.name || 'נרשמת'), ' · ' + fmtPhone(x.phone));
         const pos = x.mine;
@@ -373,13 +398,17 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     } else if (notOpen) {
       box2.append(el('p', 'g-note', 'ההרשמה תיפתח בעוד ' + until(openAt - now) + '.'));
     } else {
-      const b = el('button', 'btn btn-solid g-cta', full ? 'להרשמה לרשימת ההמתנה' : 'להרשמה'); b.type = 'button';
+      const b = el('button', 'btn btn-solid g-cta' + (full ? ' btn-wait' : ''), full ? 'להרשמה לרשימת ההמתנה' : 'להרשמה'); b.type = 'button';
       b.addEventListener('click', () => dlg.open(gameLine(when), full));
       box2.append(b);
     }
     if (msg) box2.append(el('p', 'g-msg', msg));
     info.append(box2);
     card.append(dt, info); box.append(card);
+    updateFab(!when || started || st.paused || notOpen ? null
+      : myWait.length && myWait.length === mine.length ? ['wait', 'ברשימת ההמתנה · מקום ' + (Math.min(...myWait.map(x => x.mine)) - max)]
+      : mine.length ? ['in', 'נרשמת · למשחק הקרוב']
+      : full ? ['wait', 'להרשמה לרשימת ההמתנה'] : null);
 
     Object.entries(kept).forEach(([id, v]) => { const i = document.getElementById(id); if (!i) return; if (i.type === 'checkbox') i.checked = v; else i.value = v; });
     if (focusId) { const f = document.getElementById(focusId); if (f) f.focus(); }
