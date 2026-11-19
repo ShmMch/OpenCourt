@@ -93,6 +93,12 @@ document.getElementById('fab').addEventListener('click', e => {
 
 // ===== המשחק הבא + הרשמה, דרך גוגל שיטס =====
 // כאן מדביקים את כתובת ה־Web app מה־Apps Script (מסתיימת ב־/exec):
+// כללי הרישום: ההרשמה נפתחת 24 שעות לפני המשחק (במוצאי שבת: 48), וביטול אפשרי עד חצי שעה לפני.
+// חשוב: אותם כללים צריכים להיות גם ב־Apps Script, שהוא זה שמאשר הרשמות וביטולים בפועל.
+const OPEN_HOURS = 24, OPEN_HOURS_SAT_NIGHT = 48, CANCEL_MINUTES = 30;
+const regOpenAt = w => w.getTime() - (w.getDay() === 6 ? OPEN_HOURS_SAT_NIGHT : OPEN_HOURS) * 3600e3;
+const regCancelBy = w => w.getTime() - CANCEL_MINUTES * 60e3;
+
 const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX64YsEfepNFMj40npoXDw3eodjcLbqacyT3pjpxeOz82m3w/exec';
 
 (function nextGame() {
@@ -199,7 +205,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     busy = false; render();
   }
 
-  // Sign-up dialog: name, phone, ride, health declaration. Built once, outside the card that re-renders.
+  // Sign-up dialog: name, phone, health declaration. Built once, outside the card that re-renders.
   function makeSignupDialog(onSubmit, withHoneypot) {
     const DECL = 'אני מצהירה שמצבי הבריאותי תקין ומאפשר פעילות ספורטיבית, ושההשתתפות במשחק היא באחריותי.';
     const d = el('dialog', 'dlg'); d.dir = 'rtl'; d.setAttribute('aria-labelledby', 'dlg-title');
@@ -209,7 +215,6 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     const fld = (id, label, type, extra) => { const w = el('label', 'dlg-fld'); w.htmlFor = id; w.append(label); const i = el('input'); i.id = id; i.type = type; Object.assign(i, extra); w.append(i); return [w, i]; };
     const [nameL, name] = fld('d-name', 'שם', 'text', { autocomplete: 'name', maxLength: 40, required: true, placeholder: 'שם מלא' });
     const [phoneL, phone] = fld('d-phone', 'מספר טלפון נייד', 'tel', { autocomplete: 'tel', inputMode: 'tel', required: true, placeholder: '050-0000000', dir: 'ltr' });
-    const rideL = el('label', 'g-ride'); const ride = el('input'); ride.type = 'checkbox'; ride.id = 'd-ride'; rideL.htmlFor = 'd-ride'; rideL.append(ride, 'אני צריכה מקום ברכב מאלעד');
     const okL = el('label', 'g-ride g-consent'); const ok = el('input'); ok.type = 'checkbox'; ok.id = 'd-consent'; okL.htmlFor = 'd-consent'; okL.append(ok, DECL);
     const okNote = el('small', 'g-privacy', 'כל נרשמת מאשרת את ההצהרה בעצמה.');
     const hp = el('input'); hp.name = 'website'; hp.tabIndex = -1; hp.autocomplete = 'off'; hp.setAttribute('aria-hidden', 'true');
@@ -219,17 +224,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     const no = el('button', 'btn btn-line', 'ביטול'); no.type = 'button'; no.addEventListener('click', () => d.close());
     const btns = el('div', 'dlg-btns'); btns.append(go, no);
     const priv = el('small', 'g-privacy', 'כל נרשמת מאשרת את ההצהרה בעצמה. השם והמספר נשמרים רק אצל המארגנות.');
-    const pick = el('div', 'pick'); pick.hidden = true;
-    // תחנות איסוף קבועות. בחירה מהרשימה בלבד.
-    const STATIONS = ['נחלת יצחק', 'קידישיק', 'ישיבת הר"ן'];
-    const stL = el('label', 'dlg-fld'); stL.htmlFor = 'd-station'; stL.append('מאיזו תחנה לאסוף אותך?');
-    const stSel = el('select'); stSel.id = 'd-station'; stL.append(stSel);
-    { const o = el('option', null, 'בחרי תחנה'); o.value = ''; stSel.append(o); }
-    STATIONS.forEach(n => { const o = el('option', null, n); o.value = n; stSel.append(o); });
-    pick.append(stL);
-    ride.addEventListener('change', () => { pick.hidden = !ride.checked; });
+    const terms = el('p', 'g-privacy', 'ביטול אפשרי עד חצי שעה לפני המשחק. אחרי זה, מי שרשומה משלמת על המקום גם אם לא הגיעה.');
     const row = el('div', 'dlg-row'); row.append(nameL, phoneL);
-    f.append(h, sub, row, rideL, pick, okL);
+    f.append(h, sub, row, terms, okL);
     if (withHoneypot) f.append(hp);
     f.append(msg, btns, priv);
     d.append(f); document.body.append(d);
@@ -239,12 +236,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
       const nm = name.value.trim(), ph = normPhone(phone.value);
       if (nm.length < 2) { msg.textContent = 'נא להזין שם.'; name.focus(); return; }
       if (!ph) { msg.textContent = 'נא להזין מספר נייד ישראלי, למשל 050-1234567.'; phone.focus(); return; }
-      if (ride.checked && !stSel.value) { msg.textContent = 'נא לבחור תחנת איסוף.'; stSel.focus(); return; }
-      const pk = ride.checked ? { t: stSel.value, lat: null, lng: null } : null;
       if (!ok.checked) { msg.textContent = 'כדי להירשם צריך לאשר את הצהרת הבריאות והאחריות.'; ok.focus(); return; }
       go.disabled = true; go.textContent = 'רגע…';
       try {
-        const err = await onSubmit({ name: nm, phone: ph, ride: ride.checked, pickup: pk ? pk.t : '', lat: pk ? pk.lat : null, lng: pk ? pk.lng : null, website: hp.value });
+        const err = await onSubmit({ name: nm, phone: ph, website: hp.value });
         if (err) msg.textContent = err;
         else d.close();
       } catch (x) { msg.textContent = 'אין חיבור כרגע. נסי שוב בעוד רגע.'; }
@@ -253,7 +248,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     return {
       open(line, full, another) {
         sub.textContent = line; h.textContent = another ? 'הרשמה של בת נוספת' : full ? 'הרשמה לרשימת ההמתנה' : 'הרשמה למשחק';
-        msg.textContent = ''; ok.checked = false; ride.checked = false; pick.hidden = true; stSel.value = '';
+        msg.textContent = ''; ok.checked = false;
         if (another) { name.value = ''; phone.value = ''; }
         else try { if (!name.value) name.value = localStorage.getItem('elad-women-name') || ''; if (!phone.value) phone.value = localStorage.getItem('elad-women-phone') || ''; } catch (x) {}
         if (d.showModal) d.showModal(); else d.setAttribute('open', '');
@@ -263,8 +258,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
   }
 
   const gameLine = w => w ? dayName(w) + ', ' + w.getDate() + ' ' + months[w.getMonth()] + ' · ' + String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0') + (st && st.place ? ' · ' + st.place : '') : '';
-  const dlg = makeSignupDialog(async ({ name, phone, ride, pickup, lat, lng, website }) => {
-    const r = await post({ action: 'signup', name, phone, ride, pickup, lat, lng, consent: true, website });
+  const dlg = makeSignupDialog(async ({ name, phone, website }) => {
+    // אין יותר הסעות: השדות נשלחים ריקים כדי שהסקריפט ימשיך לעבוד בלי שינוי
+    const r = await post({ action: 'signup', name, phone, ride: false, pickup: '', lat: null, lng: null, consent: true, website });
     if (!r.ok) return r.message || 'ההרשמה לא הצליחה.';
     if (r.token) {
       mineList.push({ key: r.key, token: r.token, name, phone, mine: r.mine }); store.save(mineList);
@@ -289,8 +285,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
 
     const when = st.when ? new Date(st.when) : null;
     const now = Date.now(), max = st.max || 12;
-    const openAt = st.openAt ? new Date(st.openAt).getTime() : 0;
-    const cancelBy = st.cancelBy ? new Date(st.cancelBy).getTime() : 0;
+    const openAt = when ? regOpenAt(when) : 0;
+    const cancelBy = when ? regCancelBy(when) : 0;
     const started = when && now >= when.getTime();
     const notOpen = when && now < openAt;
     const mine = mineList.filter(x => x.key === st.key);
@@ -355,7 +351,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
         ul.append(li);
       });
       box2.append(ul);
-      if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטול עבר. אם מישהי לא תוכל להגיע, כתבי בקבוצת העדכונים.'));
+      const hm = t => { const x = new Date(t); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); };
+      if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטול עבר, והמקום כבר בתשלום גם אם לא מגיעות. אם מישהי לא תוכל להגיע, כתבי בקבוצת העדכונים כדי שמישהי מההמתנה תיכנס.'));
+      else box2.append(el('p', 'g-note', 'אפשר לבטל עד ' + hm(cancelBy) + ' (חצי שעה לפני המשחק). אחרי זה המקום בתשלום גם אם לא מגיעות.'));
       if (!st.paused && !notOpen) {
         const more = el('button', 'btn btn-line g-cta', 'להרשמת בת נוספת'); more.type = 'button';
         more.addEventListener('click', () => dlg.open(gameLine(when), full, true));

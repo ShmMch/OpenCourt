@@ -181,6 +181,7 @@ a{color:var(--brand)}
 .who{font-size:clamp(20px,2vw,24px);font-weight:700;color:var(--ink)}
 .linkish{align-self:flex-start;background:none;border:0;padding:6px 0;font:inherit;font-weight:700;color:var(--brand);text-decoration:underline;cursor:pointer;min-height:44px;text-align:right}
 .places{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.places>.place:only-child{grid-column:1/-1}
 .place{border-radius:24px;overflow:hidden;padding:26px 28px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .place.p{background:var(--pink-soft)} .place.o{background:var(--orange-soft)}
 .place .ico{width:48px;height:48px;border-radius:14px;background:var(--bg);color:var(--brand);display:flex;align-items:center;justify-content:center}
