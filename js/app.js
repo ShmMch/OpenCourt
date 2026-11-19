@@ -94,7 +94,7 @@ document.getElementById('fab').addEventListener('click', e => {
 // ===== המשחק הבא + הרשמה, דרך גוגל שיטס =====
 // כאן מדביקים את כתובת ה־Web app מה־Apps Script (מסתיימת ב־/exec):
 // כללי הרישום: ההרשמה נפתחת 24 שעות לפני המשחק (במוצאי שבת: 48), וביטול אפשרי עד חצי שעה לפני.
-// חשוב: אותם כללים צריכים להיות גם ב־Apps Script, שהוא זה שמאשר הרשמות וביטולים בפועל.
+// משמש רק כגיבוי: בדרך כלל הזמנים מגיעים מה־Apps Script (openAt / cancelBy).
 const OPEN_HOURS = 24, OPEN_HOURS_SAT_NIGHT = 48, CANCEL_MINUTES = 30;
 const regOpenAt = w => w.getTime() - (w.getDay() === 6 ? OPEN_HOURS_SAT_NIGHT : OPEN_HOURS) * 3600e3;
 const regCancelBy = w => w.getTime() - CANCEL_MINUTES * 60e3;
@@ -285,8 +285,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
 
     const when = st.when ? new Date(st.when) : null;
     const now = Date.now(), max = st.max || 12;
-    const openAt = when ? regOpenAt(when) : 0;
-    const cancelBy = when ? regCancelBy(when) : 0;
+    // הזמנים מגיעים מהסקריפט (הוא שמאשר בפועל). אם חסרים, מחושבים לפי הכללים למעלה.
+    const openAt = st.openAt ? new Date(st.openAt).getTime() : when ? regOpenAt(when) : 0;
+    const cancelBy = st.cancelBy ? new Date(st.cancelBy).getTime() : when ? regCancelBy(when) : 0;
     const started = when && now >= when.getTime();
     const notOpen = when && now < openAt;
     const mine = mineList.filter(x => x.key === st.key);
@@ -329,7 +330,9 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     if (!when || started) {
       /* אין מה לעשות */
     } else if (mine.length) {
-      box2.append(el('p', 'g-mine', mine.length === 1 ? 'נרשמת למשחק. נתראה על המגרש!' : 'נרשמו מהמכשיר הזה:'));
+      const waits = x => x.mine && x.mine > max; // ברשימת ההמתנה
+      const anyIn = mine.some(x => !waits(x)), anyWait = mine.some(waits);
+      box2.append(el('p', 'g-mine', mine.length > 1 ? 'נרשמו מהמכשיר הזה:' : anyWait ? 'נרשמת לרשימת ההמתנה. אם מישהי תבטל, תעלי למשחק אוטומטית.' : 'נרשמת למשחק. נתראה על המגרש!'));
       const ul = el('ul', 'g-mylist');
       mine.forEach(x => {
         const li = el('li');
@@ -352,8 +355,14 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
       });
       box2.append(ul);
       const hm = t => { const x = new Date(t); return String(x.getHours()).padStart(2, '0') + ':' + String(x.getMinutes()).padStart(2, '0'); };
-      if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטול עבר, והמקום כבר בתשלום גם אם לא מגיעות. אם מישהי לא תוכל להגיע, כתבי בקבוצת העדכונים כדי שמישהי מההמתנה תיכנס.'));
-      else box2.append(el('p', 'g-note', 'אפשר לבטל עד ' + hm(cancelBy) + ' (חצי שעה לפני המשחק). אחרי זה המקום בתשלום גם אם לא מגיעות.'));
+      if (anyIn) {
+        if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטול עבר, והמקום כבר בתשלום גם אם לא מגיעות. אם מישהי לא תוכל להגיע, כתבי בקבוצת העדכונים כדי שמישהי מההמתנה תיכנס.'));
+        else box2.append(el('p', 'g-note', 'אפשר לבטל עד ' + hm(cancelBy) + ' (חצי שעה לפני המשחק). אחרי זה המקום בתשלום גם אם לא מגיעות.'));
+      }
+      if (anyWait) {
+        if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטולים עבר ולא התפנה מקום מרשימת ההמתנה. אם יתפנה מקום ברגע האחרון, נעדכן בקבוצה.'));
+        else box2.append(el('p', 'g-note', 'אם תעלי למשחק, זה יופיע כאן. מאותו רגע את רשומה לכל דבר: ביטול אפשרי עד ' + hm(cancelBy) + ', ואחרי זה המקום בתשלום.'));
+      }
       if (!st.paused && !notOpen) {
         const more = el('button', 'btn btn-line g-cta', 'להרשמת בת נוספת'); more.type = 'button';
         more.addEventListener('click', () => dlg.open(gameLine(when), full, true));
