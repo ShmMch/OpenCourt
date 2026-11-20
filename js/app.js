@@ -95,10 +95,11 @@ document.getElementById('fab').addEventListener('click', e => {
 
 // ===== המשחק הבא + הרשמה, דרך גוגל שיטס =====
 // כאן מדביקים את כתובת ה־Web app מה־Apps Script (מסתיימת ב־/exec):
-// כללי הרישום: ההרשמה נפתחת 24 שעות לפני המשחק (במוצאי שבת: 48), וביטול אפשרי עד חצי שעה לפני.
+// כללי הרישום: ההרשמה נפתחת 24 שעות לפני המשחק, ונסגרת (גם לביטולים) חצי שעה לפני.
 // משמש רק כגיבוי: בדרך כלל הזמנים מגיעים מה־Apps Script (openAt / cancelBy).
-const OPEN_HOURS = 24, OPEN_HOURS_SAT_NIGHT = 48, CANCEL_MINUTES = 30;
-const regOpenAt = w => w.getTime() - (w.getDay() === 6 ? OPEN_HOURS_SAT_NIGHT : OPEN_HOURS) * 3600e3;
+const OPEN_HOURS = 24, CANCEL_MINUTES = 30, CLOSE_MINUTES = 30, MIN_PLAYERS = 8;
+const regOpenAt = w => w.getTime() - OPEN_HOURS * 3600e3;
+const regCloseAt = w => w.getTime() - CLOSE_MINUTES * 60e3;
 const regCancelBy = w => w.getTime() - CANCEL_MINUTES * 60e3;
 
 const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX64YsEfepNFMj40npoXDw3eodjcLbqacyT3pjpxeOz82m3w/exec';
@@ -288,7 +289,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
   // הכפתור הצף למעלה: הטקסט והצבע לפי המצב. null = ברירת המחדל
   const fabEl = document.getElementById('fab'), fabTxt = fabEl.lastElementChild, fabDefault = fabTxt.textContent;
   function updateFab(v) {
-    fabTxt.textContent = v ? v[1] : fabDefault;
+    fabTxt.textContent = v ? v[1] : st ? 'למשחקים הקרובים' : fabDefault; // אין משחק פתוח להרשמה כרגע
     fabEl.dataset.state = v ? v[0] : '';
     fabEl.classList.toggle('fab-wait', !!v && (v[0] === 'wait' || v[0] === 'wait-me'));
   }
@@ -320,8 +321,11 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     // הזמנים מגיעים מהסקריפט (הוא שמאשר בפועל). אם חסרים, מחושבים לפי הכללים למעלה.
     const openAt = g.openAt ? new Date(g.openAt).getTime() : when ? regOpenAt(when) : 0;
     const cancelBy = g.cancelBy ? new Date(g.cancelBy).getTime() : when ? regCancelBy(when) : 0;
+    const closeAt = g.closeAt ? new Date(g.closeAt).getTime() : when ? regCloseAt(when) : 0;
     const started = when && now >= when.getTime();
     const notOpen = when && now < openAt;
+    const closed = when && !started && now >= closeAt; // ההרשמה נסגרת חצי שעה לפני המשחק
+    const minP = g.min || st.min || MIN_PLAYERS;
     const paused = !!st.paused;
     const mine = mineList.filter(x => x.key === key && key);
     const count = g.count || 0, waitN = g.waiting || 0;
@@ -335,7 +339,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     const full = count >= max;
     const waits = x => x.mine && x.mine > max; // ברשימת ההמתנה
     const myWait = mine.filter(waits);
-    const status = !when ? ['', 'פרטים בקרוב'] : paused ? ['', 'ההרשמה סגורה כרגע'] : started ? ['', 'המשחק התחיל'] : notOpen ? ['', 'ההרשמה תיפתח בקרוב'] : full ? ['full', ''] : ['open', 'ההרשמה פתוחה'];
+    const status = !when ? ['', 'פרטים בקרוב'] : paused ? ['', 'ההרשמה סגורה כרגע'] : started ? ['', 'המשחק התחיל'] : closed ? ['', 'ההרשמה נסגרה'] : notOpen ? ['', 'ההרשמה תיפתח בקרוב'] : full ? ['full', ''] : ['open', 'ההרשמה פתוחה'];
     if (status[0] === 'full') status[1] = waitN ? 'מלא · ' + waitN + ' בהמתנה' : 'מלא · אפשר להמתין';
     const top = el('div', 'g-top');
     top.append(el('h3', null, g.title || st.title || 'משחק כדורסל'), el('span', 'badge ' + status[0], status[1]));
@@ -358,8 +362,10 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     meter.append(bar, txt);
     info.append(top, meta, cd);
     if (when) info.append(meter);
+    if (when && !started && count < minP) // מינימום משתתפות
+      info.append(el('p', 'g-min', 'המשחק מתקיים מ־' + minP + ' נרשמות' + (closed ? '.' : ' · חסרות עוד ' + (minP - count))));
     // משחק מלא, למי שעוד לא רשומה: מה זה אומר ומה יקרה אם תירשם
-    if (full && when && !started && !paused && !notOpen && !mine.length) {
+    if (full && when && !started && !closed && !paused && !notOpen && !mine.length) {
       const bn = el('div', 'wl-box'); const ic = el('span', 'wl-ic'); ic.innerHTML = hourglassSvg;
       const t = el('div');
       t.append(el('b', null, 'המשחק מלא, אבל יש רשימת המתנה'),
@@ -420,13 +426,15 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
         if (now >= cancelBy) box2.append(el('p', 'g-note', 'זמן הביטולים עבר ולא התפנה מקום מרשימת ההמתנה. אם יתפנה מקום ברגע האחרון, נעדכן בקבוצה.'));
         else box2.append(el('p', 'g-note', 'אם תעלי למשחק, זה יופיע כאן. מאותו רגע את רשומה לכל דבר: ביטול אפשרי עד ' + hhmm(new Date(cancelBy)) + ', ואחרי זה המקום בתשלום.'));
       }
-      if (!paused && !notOpen) {
+      if (!paused && !notOpen && !closed) {
         const more = el('button', 'btn btn-line g-cta', 'להרשמת בת נוספת'); more.type = 'button';
         more.addEventListener('click', () => dlg.open(line, full, true, key));
         box2.append(more);
       }
     } else if (paused) {
       box2.append(el('p', 'g-note', 'ההרשמה סגורה כרגע. עדכונים בקבוצת העדכונים.'));
+    } else if (closed) {
+      box2.append(el('p', 'g-note', 'ההרשמה נסגרה חצי שעה לפני המשחק. נתראה בפעם הבאה!'));
     } else if (notOpen) {
       box2.append(el('p', 'g-note', 'ההרשמה תיפתח בעוד ' + until(openAt - now) + '.'));
     } else {
@@ -438,7 +446,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycby-n0GOgBIXnkZxdzoNK-PX
     info.append(box2);
     card.append(dt, info);
 
-    if (when && !started && !paused && !notOpen) {
+    if (when && !started && !closed && !paused && !notOpen) {
       if (myWait.length && myWait.length === mine.length) fabs.push(['wait-me', 'ברשימת ההמתנה · מקום ' + (Math.min(...myWait.map(x => x.mine)) - max)]);
       else if (mine.length) fabs.push(['in', 'נרשמת · למשחק ב' + dayName(when)]);
       else fabs.push(full ? ['wait', 'להרשמה לרשימת ההמתנה'] : ['open', 'להרשמה למשחק הקרוב']);

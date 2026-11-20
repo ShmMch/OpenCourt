@@ -1,9 +1,9 @@
 /* Layout: flyer-style white page, double-framed cards, tabbed content below the hero. Single light look, matching the printed flyer. */
 :root{
-  /* palette: #A6085F magenta · #F291B5 pink · #F2762E orange · #F26430 deep orange · #F2F2F2 light gray */
-  --page:#F2F2F2; --bg:#ffffff; --ink:#2b1620; --ink-soft:#4d3340; --muted:#6e5662;
-  --brand:#A6085F; --brand-dark:#7d0547; --pink:#F291B5; --pink-soft:#FCE4ED; --pink-line:#F7C8D9;
-  --orange:#F2762E; --orange-deep:#F26430; --orange-soft:#FDE9DD; --orange-ink:#9a3a10; --tint:#FFF6F9; --on-brand:#ffffff; --on-brand-soft:#F9D3E2;
+  /* palette (from the logo): #8F1D63 plum · #F2A6C4 pink · #EC6B3B orange · #D2541F deep orange · #FBF7F2 cream */
+  --page:#FBF7F2; --bg:#ffffff; --ink:#3B2231; --ink-soft:#5A4351; --muted:#7A6472;
+  --brand:#8F1D63; --brand-dark:#6F0F4B; --pink:#F2A6C4; --pink-soft:#FDF1F6; --pink-line:#F5D5E3;
+  --orange:#EC6B3B; --orange-deep:#D2541F; --orange-soft:#FEEFE6; --orange-ink:#9A3A12; --tint:#FFF8FA; --on-brand:#ffffff; --on-brand-soft:#F6D6E5;
   --font:'Rubik', 'Assistant', 'Arial Hebrew', system-ui, sans-serif;
   color-scheme: light;
 }
@@ -348,3 +348,9 @@ details p{padding:0 22px 20px;color:var(--ink-soft)}
 .wl-box div{display:flex;flex-direction:column;gap:4px}
 .wl-box b{font-size:18px;color:var(--orange-ink)}
 .wl-box span:not(.wl-ic){font-size:15px;color:var(--ink-soft)}
+
+/* ===== מראה בהיר יותר, לפי הלוגו ===== */
+.g-date{background:var(--pink-soft);color:var(--brand);border:2px solid var(--pink-line)}
+.g-date small{color:var(--brand)}
+.game-card{border-width:2px;box-shadow:0 6px 22px -14px rgba(143,29,99,.35)}
+.g-min{font-size:15px;font-weight:700;color:var(--brand);background:var(--pink-soft);border-radius:12px;padding:8px 12px}
